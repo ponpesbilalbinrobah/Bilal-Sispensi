@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SISPENSI SANTRI - Pondok Pesantren Bilal Bin Robah</title>
+  <meta name="description" content="SISPENSI SANTRI - Sistem Presensi & Pemantauan Keaktifan Santri Pondok Pesantren Bilal Bin Robah. Akses Ustadz/Pengajar & Pemantauan Wali Santri Tanpa Sandi.">
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dark">
+
+  <!-- ======================================================== -->
+  <!-- 1. FULLSCREEN LOGIN PAGE (SISPENSI SANTRI) -->
+  <!-- ======================================================== -->
+  <section class="login-fullscreen-page" id="login-page">
+    <div class="login-box-card">
+      <!-- TOP SETTING QUICK GEAR BUTTON ON LOGIN SCREEN -->
+      <button type="button" class="login-gear-btn" id="btn-login-settings" title="Setel Tema, Wallpaper & Font" aria-label="Pengaturan Tampilan">
+        ⚙️
+      </button>
+
+      <!-- BREATHING LOGO -->
+      <div class="login-logo-container">
+        <img src="logo.png" alt="Logo Pondok Pesantren Bilal Bin Robah" class="login-logo-img">
+      </div>
+
+      <!-- TITLE -->
+      <h2 class="login-title-main">SISPENSI SANTRI</h2>
+      <p class="login-subtitle-instansi">Sistem Presensi & Pemantauan Keaktifan Santri • Pondok Pesantren Bilal Bin Robah</p>
+
+      <!-- FORM LOGIN USTADZ / PENGAJAR -->
+      <div class="login-form-inner">
+        <label for="select-muhaffiz" class="sr-only">Pilih Nama Ustadz / Pengajar</label>
+        <select id="select-muhaffiz" class="login-select">
+          <option value="">-- Pilih Nama Ustadz / Pengajar --</option>
+          <!-- Injected via JS with Ustadz names -->
+        </select>
+
+        <label for="sandi-muhaffiz" class="sr-only">Kata Sandi Ustadz</label>
+        <input type="password" id="sandi-muhaffiz" class="login-input" placeholder="Kata Sandi Ustadz..." autocomplete="current-password">
+
+        <!-- BUTTON 1: MASUK USTADZ / PENGAJAR -->
+        <button type="button" class="btn-login-primary" id="btn-submit-muhaffiz">
+          MASUK USTADZ / PENGAJAR
+        </button>
+
+        <!-- BUTTON 2: PANTAU KEAKTIFAN ANANDA (WALI) - TANPA SANDI -->
+        <button type="button" class="btn-login-outline" id="btn-open-wali-portal">
+          <span style="font-size: 1.15rem; margin-right: 6px;">👨‍👩‍👧</span> PANTAU KEAKTIFAN ANANDA
+        </button>
+
+        <!-- BUTTON 3: PANTAU HAFALAN ANAK (LINK TAB BARU KE BILAL-TAHFIZH) -->
+        <a href="https://bilal-tahfizh.vercel.app/" target="_blank" rel="noopener noreferrer" class="btn-login-outline btn-login-tahfizh" id="btn-open-hafalan-portal" title="Buka Portal Pantau Hafalan Anak di Tab Baru">
+          <span style="font-size: 1.15rem; margin-right: 6px;">📖</span> PANTAU HAFALAN ANAK
+          <span style="font-size: 0.85rem; margin-left: 4px; opacity: 0.85;">↗</span>
+        </a>
+
+        <p class="wali-no-password-hint">
+          ℹ️ <strong>Khusus Wali Santri:</strong> Akses pantau keaktifan ananda <em>langsung tanpa sandi</em>.
+        </p>
+      </div>
+
+      <!-- ADMIN TRIGGER GEAR AT BOTTOM -->
+      <div class="admin-trigger" id="btn-trigger-admin" title="Masuk sebagai Administrator">
+        <span>👑</span> Akses Admin Pondok
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================== -->
+  <!-- 2. MAIN APP WRAPPER (KETIKA SUDAH LOGIN) -->
+  <!-- ======================================================== -->
+  <div class="app-container" id="app-container" style="display: none;">
+    <!-- HEADER -->
+    <header class="app-header" id="app-header">
+      <div class="header-left">
+        <div class="brand-logo-wrap">
+          <img src="logo.png" alt="Logo Pondok Pesantren Bilal Bin Robah" class="brand-logo" id="brand-logo">
+        </div>
+        <div class="brand-info">
+          <div class="brand-badge">Pondok Pesantren Bilal Bin Robah</div>
+          <h1 class="brand-title">SISPENSI SANTRI</h1>
+          <p class="brand-subtitle">Sistem Presensi & Pemantauan Keaktifan Santri Terpadu</p>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <div class="live-datetime" id="live-datetime">
+          <div class="live-time" id="clock-display">00:00:00 WIB</div>
+          <div class="live-date" id="date-display">Kamis, 22 Oktober 2026 / 11 Rabiul Akhir 1448 H</div>
+          <div class="current-slot-badge" id="current-slot-indicator">
+            <span class="slot-dot"></span> Sesi Aktif: <strong id="active-slot-name">Halaqoh Al Quran</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- SETTINGS GEAR BUTTON -->
+        <button type="button" class="btn-icon-toggle btn-setting-gear" id="btn-open-settings" aria-label="Buka Pengaturan Tema, Wallpaper & Font" title="Pengaturan Tampilan (Tema, Wallpaper, Font)">
+          <span class="gear-icon">⚙️</span>
+        </button>
+
+        <!-- THEME QUICK TOGGLE -->
+        <button type="button" class="btn-icon-toggle" id="theme-toggle" aria-label="Ganti Tema Gelap/Terang" title="Ganti Mode Gelap/Terang">
+          <span class="theme-icon" id="theme-icon">🌙</span>
+        </button>
+
+        <!-- USER BADGE -->
+        <div class="user-profile-badge" id="user-profile-badge">
+          <div class="user-avatar" id="current-user-avatar">AD</div>
+          <div class="user-details">
+            <div class="user-name" id="current-user-name">Ustadz Dr. H. Abdullah</div>
+            <span class="user-role-chip role-admin" id="current-user-role">Administrator</span>
+          </div>
+          <button type="button" class="btn-logout" id="btn-logout" title="Keluar / Ganti Akun">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT VIEWS (ROLE-BASED) -->
+    <main class="main-content" id="main-content">
+
+      <!-- ======================================================== -->
+      <!-- VIEW 1: ADMIN PORTAL -->
+      <!-- ======================================================== -->
+      <section class="portal-view" id="view-admin" style="display: none;">
+        <!-- ADMIN NAVIGATION TABS -->
+        <nav class="nav-tabs-bar" aria-label="Navigasi Admin">
+          <button type="button" class="tab-btn active" data-admin-tab="dashboard" id="tab-admin-dashboard" title="Ringkasan & Dashboard">
+            <span class="tab-icon">📊</span>
+            <span class="tab-title">Dashboard</span>
+          </button>
+          <button type="button" class="tab-btn" data-admin-tab="santri" id="tab-admin-santri" title="Data Santri">
+            <span class="tab-icon">👥</span>
+            <span class="tab-title">Data Santri</span>
+            <span class="tab-badge" id="admin-santri-count">0</span>
+          </button>
+          <button type="button" class="tab-btn" data-admin-tab="ustadz" id="tab-admin-ustadz" title="Data Ustadz">
+            <span class="tab-icon">👳‍♂️</span>
+            <span class="tab-title">Data Ustadz</span>
+            <span class="tab-badge" id="admin-ustadz-count">0</span>
+          </button>
+          <button type="button" class="tab-btn" data-admin-tab="kelas" id="tab-admin-kelas" title="Master Kelas & Halaqoh">
+            <span class="tab-icon">🏫</span>
+            <span class="tab-title">Kelas & Halaqoh</span>
+            <span class="tab-badge" id="admin-kelas-count">0</span>
+          </button>
+          <button type="button" class="tab-btn" data-admin-tab="jadwal" id="tab-admin-jadwal" title="Master Jadwal Slot">
+            <span class="tab-icon">⏰</span>
+            <span class="tab-title">Jadwal Slot</span>
+            <span class="tab-badge"><span id="admin-slots-count">11</span> Sesi</span>
+          </button>
+          <button type="button" class="tab-btn" data-admin-tab="rekapitulasi" id="tab-admin-rekapitulasi" title="Rekapitulasi & Ekspor Laporan">
+            <span class="tab-icon">📑</span>
+            <span class="tab-title">Rekapitulasi Laporan</span>
+          </button>
+        </nav>
+
+        <!-- TAB CONTENT 1: DASHBOARD STATS -->
+        <div class="tab-pane active" id="pane-admin-dashboard">
+          <div class="stats-grid">
+            <div class="stat-card stat-emerald">
+              <div class="stat-icon-wrap">👥</div>
+              <div class="stat-info">
+                <span class="stat-label">Total Santri Terdaftar</span>
+                <h3 class="stat-number" id="stat-total-santri">0</h3>
+                <span class="stat-meta">Kelas 7A, 7B, 8A & Halaqoh</span>
+              </div>
+            </div>
+
+            <div class="stat-card stat-teal">
+              <div class="stat-icon-wrap">👳‍♂️</div>
+              <div class="stat-info">
+                <span class="stat-label">Total Ustadz / Pengajar</span>
+                <h3 class="stat-number" id="stat-total-ustadz">0</h3>
+                <span class="stat-meta">Aktif mengampu sesi pondok</span>
+              </div>
+            </div>
+
+            <div class="stat-card stat-amber">
+              <div class="stat-icon-wrap">📈</div>
+              <div class="stat-info">
+                <span class="stat-label">Kehadiran Hari Ini</span>
+                <h3 class="stat-number" id="stat-attendance-rate">0%</h3>
+                <span class="stat-meta" id="stat-attendance-breakdown">0 Hadir • 0 Izin/Sakit • 0 Alpa</span>
+              </div>
+            </div>
+
+            <div class="stat-card stat-indigo">
+              <div class="stat-icon-wrap">⭐</div>
+              <div class="stat-info">
+                <span class="stat-label">Rata-rata Skor Keaktifan</span>
+                <h3 class="stat-number" id="stat-avg-keaktifan">0.0</h3>
+                <span class="stat-meta">Skala 1.0 - 5.0 (Mumtaz)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-double-col">
+            <div class="content-card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Jadwal Slot Waktu Hari Ini</h3>
+                  <p class="card-desc">Status pengisian absensi pada 11 slot resmi Pondok Pesantren Bilal Bin Robah</p>
+                </div>
+                <span class="badge badge-success" id="badge-completed-slots">0 / 11 Terisi</span>
+              </div>
+              <div class="slot-timeline-list" id="admin-slot-timeline"></div>
+            </div>
+
+            <div class="content-card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Perhatian Khusus Santri</h3>
+                  <p class="card-desc">Santri yang sakit, izin, alpa, atau keaktifan &lt; 3.0</p>
+                </div>
+                <span class="badge badge-warning" id="badge-attention-count">0 Santri</span>
+              </div>
+              <div class="attention-list" id="admin-attention-list"></div>
+
+              <div class="card-divider"></div>
+              <h4 class="subcard-title">Log Input Ustadz Terkini</h4>
+              <div class="recent-logs-list" id="admin-recent-logs"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 2: DATA SANTRI -->
+        <div class="tab-pane" id="pane-admin-santri">
+          <div class="content-card">
+            <div class="card-header-actions">
+              <div>
+                <h3 class="card-title">Daftar Data Santri Pondok Pesantren Bilal Bin Robah</h3>
+                <p class="card-desc">Kelola profil santri, data wali, nomor kontak, dan penempatan halaqoh</p>
+              </div>
+              <div class="header-btn-group" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <button type="button" class="btn btn-outline" id="btn-open-spreadsheet-import" title="Tambah data santri massal dari file Spreadsheet Excel / CSV">
+                  <span class="btn-icon">📊</span> Import Spreadsheet
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-add-santri">
+                  <span class="btn-icon">➕</span> Tambah Santri Baru
+                </button>
+              </div>
+            </div>
+
+            <div class="table-filter-bar">
+              <div class="search-input-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="filter-santri-search" class="form-control" placeholder="Cari santri berdasarkan Nama atau NIS...">
+              </div>
+              <div class="filter-select-wrap">
+                <select id="filter-santri-kelas" class="form-control">
+                  <option value="">Semua Kelas & Halaqoh</option>
+                  <option value="Kelas 7A">Kelas 7A (Putra)</option>
+                  <option value="Kelas 7B">Kelas 7B (Putri)</option>
+                  <option value="Kelas 8A">Kelas 8A (Putra)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table" id="table-santri">
+                <thead>
+                  <tr>
+                    <th>NIS</th>
+                    <th>Santri</th>
+                    <th>Kelas / Halaqoh</th>
+                    <th>Kamar / Asrama</th>
+                    <th>Nama Orang Tua / Wali</th>
+                    <th>No. WhatsApp Wali</th>
+                    <th>Kehadiran Rata-rata</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-santri"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 3: DATA USTADZ -->
+        <div class="tab-pane" id="pane-admin-ustadz">
+          <div class="content-card">
+            <div class="card-header-actions">
+              <div>
+                <h3 class="card-title">Daftar Tenaga Pengajar & Ustadz</h3>
+                <p class="card-desc">Kelola data ustadz, NIP, pengampu halaqoh, serta hak akses login</p>
+              </div>
+              <div class="header-btn-group">
+                <button type="button" class="btn btn-primary" id="btn-add-ustadz">
+                  <span class="btn-icon">➕</span> Tambah Ustadz Baru
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table" id="table-ustadz">
+                <thead>
+                  <tr>
+                    <th>NIP</th>
+                    <th>Nama Ustadz</th>
+                    <th>Bidang Pengajaran / Halaqoh</th>
+                    <th>ID Login</th>
+                    <th>No. WhatsApp</th>
+                    <th>Status Pengisian Hari Ini</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-ustadz"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT: MASTER KELAS & HALAQOH -->
+        <div class="tab-pane" id="pane-admin-kelas">
+          <div class="content-card">
+            <div class="card-header-actions">
+              <div>
+                <h3 class="card-title">Master Kelas & Halaqoh Pondok Pesantren</h3>
+                <p class="card-desc">Buat dan atur rombongan belajar, halaqoh tahfidz, pengampu ustadz, dan mutasi santri antar halaqoh</p>
+              </div>
+              <div class="header-btn-group" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <button type="button" class="btn btn-outline" id="btn-open-mutasi-modal" style="border-color: #0ea5e9; color: #38bdf8;">
+                  <span class="btn-icon">🔄</span> Pindah / Mutasi Santri
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-add-kelas">
+                  <span class="btn-icon">➕</span> Tambah Kelas / Halaqoh
+                </button>
+              </div>
+            </div>
+
+            <!-- Ringkasan Statistik Kelas/Halaqoh -->
+            <div class="stats-grid" id="kelas-stats-overview" style="margin-bottom: 18px;">
+              <div class="stat-card stat-emerald">
+                <div class="stat-icon-wrap">🏫</div>
+                <div class="stat-info">
+                  <span class="stat-label">Total Rombel / Halaqoh</span>
+                  <h3 class="stat-number" id="stat-total-kelas">0</h3>
+                  <span class="stat-meta" id="stat-kelas-meta">Kelas & Halaqoh Aktif</span>
+                </div>
+              </div>
+
+              <div class="stat-card stat-teal">
+                <div class="stat-icon-wrap">👥</div>
+                <div class="stat-info">
+                  <span class="stat-label">Santri Terdistribusi</span>
+                  <h3 class="stat-number" id="stat-kelas-total-santri">0</h3>
+                  <span class="stat-meta" id="stat-kelas-gender-meta">Ikhwan & Akhwat</span>
+                </div>
+              </div>
+
+              <div class="stat-card stat-amber">
+                <div class="stat-icon-wrap">📖</div>
+                <div class="stat-info">
+                  <span class="stat-label">Rata-rata per Halaqoh</span>
+                  <h3 class="stat-number" id="stat-avg-santri-per-kelas">0</h3>
+                  <span class="stat-meta">Kapasitas belajar ideal</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filter & Pencarian Kelas/Halaqoh -->
+            <div class="table-filter-bar">
+              <div class="search-input-wrap flex-2">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="filter-kelas-search" class="form-control" placeholder="Cari nama kelas, halaqoh, ustadz pengampu, atau ruangan...">
+              </div>
+              <div class="filter-group flex-1">
+                <select id="filter-kelas-kategori" class="form-control">
+                  <option value="">Semua Kategori</option>
+                  <option value="Kelas Reguler">Kelas Reguler</option>
+                  <option value="Halaqoh Tahfidz">Halaqoh Tahfidz</option>
+                  <option value="Halaqoh Bahasa">Halaqoh Bahasa / Lughoh</option>
+                  <option value="Kajian Kitab">Kajian Kitab</option>
+                  <option value="Takhassus">Takhassus Intensif</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Grid Kartu Kelas & Halaqoh -->
+            <div class="kelas-cards-grid" id="kelas-cards-grid"></div>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 5: MASTER JADWAL KEGIATAN -->
+        <div class="tab-pane" id="pane-admin-jadwal">
+          <div class="content-card">
+            <div class="card-header-actions">
+              <div>
+                <h3 class="card-title">Master Slot Waktu Kegiatan Harian Pondok</h3>
+                <p class="card-desc">Atur, tambah, ubah jam kegiatan, serta sesuaikan sifat absensi slot pondok</p>
+              </div>
+              <div class="header-btn-group" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <button type="button" class="btn btn-outline" id="btn-reset-slots" title="Kembalikan susunan slot ke preset 11 sesi standar resmi">
+                  🔄 Reset Standar (11 Sesi)
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-add-slot">
+                  <span class="btn-icon">➕</span> Tambah Slot Baru
+                </button>
+              </div>
+            </div>
+
+            <div class="slots-cards-grid" id="slots-cards-grid"></div>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 5: REKAPITULASI & EKSPOR LAPORAN -->
+        <div class="tab-pane" id="pane-admin-rekapitulasi">
+          <div class="content-card">
+            <div class="card-header-actions">
+              <div>
+                <h3 class="card-title">Rekapitulasi Laporan Absensi & Keaktifan Keseluruhan</h3>
+                <p class="card-desc">Filter data, analisis performa kehadiran, dan unduh laporan resmi untuk arsip pimpinan</p>
+              </div>
+              <div class="header-btn-group">
+                <button type="button" class="btn btn-success" id="btn-export-csv">
+                  <span class="btn-icon">📥</span> Ekspor CSV / Excel
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-print-rekap">
+                  <span class="btn-icon">🖨️</span> Cetak / PDF Resmi
+                </button>
+              </div>
+            </div>
+
+            <!-- PRESET RENTANG WAKTU (1 PEKAN, BULAN, SEMUA) -->
+            <!-- PRESET RENTANG WAKTU (PEKAN, BULAN, SEMUA) -->
+            <div class="rekap-preset-bar">
+              <div class="preset-left">
+                <span class="preset-title"><span>📅</span> Rentang Tampilan:</span>
+                <div class="preset-pill-group">
+                  <button type="button" class="btn-preset-range active" id="btn-preset-1week" data-preset="1week" title="Tampilkan absensi pekan ini">
+                    ⚡ Pekan Ini
+                  </button>
+                  <button type="button" class="btn-preset-range" id="btn-preset-prevweek" data-preset="prevweek" title="Tampilkan absensi 1 pekan sebelumnya">
+                    ◀ Pekan Sebelumnya
+                  </button>
+                  <button type="button" class="btn-preset-range" id="btn-preset-nextweek" data-preset="nextweek" title="Tampilkan absensi pekan berikutnya">
+                    Pekan Berikutnya ▶
+                  </button>
+                  <button type="button" class="btn-preset-range" id="btn-preset-1month" data-preset="1month" title="Tampilkan absensi 30 hari terakhir">
+                    🗓️ 1 Bulan
+                  </button>
+                  <button type="button" class="btn-preset-range" id="btn-preset-all" data-preset="all" title="Buka seluruh arsip data absensi">
+                    🗂️ Semua Data
+                  </button>
+                </div>
+              </div>
+              <div class="preset-right">
+                <span class="rekap-period-indicator" id="rekap-period-indicator">
+                  <span class="period-dot active"></span> <strong id="rekap-period-date-text">16 Okt 2026 – 22 Okt 2026</strong>
+                </span>
+              </div>
+            </div>
+
+            <div class="rekap-filter-grid">
+              <div class="filter-group">
+                <label for="rekap-date-from">Dari Tanggal:</label>
+                <input type="date" id="rekap-date-from" class="form-control">
+              </div>
+              <div class="filter-group">
+                <label for="rekap-date-to">Sampai Tanggal:</label>
+                <input type="date" id="rekap-date-to" class="form-control">
+              </div>
+              <div class="filter-group">
+                <label for="rekap-filter-slot">Slot Kegiatan:</label>
+                <select id="rekap-filter-slot" class="form-control">
+                  <option value="">Semua 11 Slot Waktu</option>
+                  <option value="slot-1">05.20 - 06.00 - Halaqoh Al Quran</option>
+                  <option value="slot-2">07.30 - 08.00 - Apel Pagi</option>
+                  <option value="slot-3">08.00 - 08.40 - Pelajaran 1</option>
+                  <option value="slot-4">08.40 - 09.20 - Pelajaran 2</option>
+                  <option value="slot-5">09.20 - 10.00 - Pelajaran 3</option>
+                  <option value="slot-6">10.00 - 10.30 - Istirahat (Istirahat)</option>
+                  <option value="slot-7">10.30 - 11.10 - Pelajaran 4</option>
+                  <option value="slot-8">11.10 - 11.50 - Pelajaran 5</option>
+                  <option value="slot-9">16.00 - 16.40 - Halaqoh Tahfidz Murojaah atau Lughoh</option>
+                  <option value="slot-10">18.30 - 19.10 - Taklim Umum</option>
+                  <option value="slot-11">19.30 - 20.10 - Halaqoh Al Quran</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label for="rekap-filter-kelas">Kelas / Halaqoh:</label>
+                <select id="rekap-filter-kelas" class="form-control">
+                  <option value="">Semua Kelas</option>
+                  <option value="Kelas 7A">Kelas 7A</option>
+                  <option value="Kelas 7B">Kelas 7B</option>
+                  <option value="Kelas 8A">Kelas 8A</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label for="rekap-filter-status">Status Kehadiran:</label>
+                <select id="rekap-filter-status" class="form-control">
+                  <option value="">Semua Status</option>
+                  <option value="Hadir">Hadir</option>
+                  <option value="Izin">Izin</option>
+                  <option value="Sakit">Sakit</option>
+                  <option value="Alpa">Alpa</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="rekap-summary-pills" id="rekap-summary-pills">
+              <div class="rekap-pill pill-total">
+                <span class="pill-title">Total Rekap:</span>
+                <strong id="rekap-total-records">0</strong> Sesi
+              </div>
+              <div class="rekap-pill pill-hadir">
+                <span class="pill-title">Hadir:</span>
+                <strong id="rekap-count-hadir">0</strong> (<span id="rekap-pct-hadir">0%</span>)
+              </div>
+              <div class="rekap-pill pill-izin">
+                <span class="pill-title">Izin:</span>
+                <strong id="rekap-count-izin">0</strong>
+              </div>
+              <div class="rekap-pill pill-sakit">
+                <span class="pill-title">Sakit:</span>
+                <strong id="rekap-count-sakit">0</strong>
+              </div>
+              <div class="rekap-pill pill-alpa">
+                <span class="pill-title">Alpa:</span>
+                <strong id="rekap-count-alpa">0</strong>
+              </div>
+              <div class="rekap-pill pill-keaktifan">
+                <span class="pill-title">Rata-rata Keaktifan:</span>
+                <strong id="rekap-avg-score">0.0</strong> / 5.0
+              </div>
+            </div>
+
+            <!-- TABEL REKAPITULASI DENGAN SCROLLING ATAS-BAWAH & STICKY HEADER -->
+            <div class="table-responsive rekap-table-scroll-container" id="rekap-table-container">
+              <table class="data-table table-rekap-fixed" id="table-rekapitulasi">
+                <thead>
+                  <tr>
+                    <th style="width: 10%;">Tanggal</th>
+                    <th style="width: 13%;">Sesi & Jam</th>
+                    <th style="width: 22%;">Nama Santri</th>
+                    <th style="width: 8%; text-align: center;">Kelas</th>
+                    <th style="width: 8%; text-align: center;">Status</th>
+                    <th style="width: 11%;">Skor</th>
+                    <th style="width: 16%;">Catatan Ustadz</th>
+                    <th style="width: 12%;">Penginput</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-rekapitulasi"></tbody>
+              </table>
+            </div>
+
+            <!-- FOOTER TANGGAL PEKAN & JUMLAH BARIS (BERSIH & TANGGAL SAJA) -->
+            <div class="rekap-table-footer">
+              <div class="footer-week-date" id="rekap-footer-week-date">
+                <span>📅</span> <strong id="rekap-footer-date-text">16 Okt 2026 – 22 Okt 2026</strong>
+              </div>
+              <div class="footer-records-info" id="rekap-footer-records-info">
+                0 Baris Data
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- VIEW 2: USTADZ / PENGAJAR PORTAL -->
+      <!-- ======================================================== -->
+      <section class="portal-view" id="view-ustadz" style="display: none;">
+        <div class="ustadz-hero-card">
+          <div class="hero-left">
+            <div class="ustadz-avatar-large" id="ustadz-profile-avatar">👨‍🏫</div>
+            <div class="hero-text">
+              <div class="hero-badge">Portal Pengajar & Pengampu Halaqoh • Bilal Bin Robah</div>
+              <h2 class="hero-name" id="ustadz-profile-name">Ustadz Ahmad Fauzi, S.Pd.I</h2>
+              <p class="hero-meta" id="ustadz-profile-meta">NIP: 198804122015011002 • Bidang: Halaqoh Al-Quran & Ulumul Quran</p>
+            </div>
+          </div>
+          <div class="hero-stats">
+            <div class="mini-stat">
+              <span class="mini-label">Sesi Selesai Hari Ini</span>
+              <span class="mini-val" id="ustadz-today-sessions">0 Sesi</span>
+            </div>
+            <div class="mini-stat">
+              <span class="mini-label">Santri Dinilai</span>
+              <span class="mini-val" id="ustadz-evaluated-count">0 Santri</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-card form-attendance-card">
+          <div class="card-header-actions">
+            <div>
+              <h3 class="card-title">Form Input Absensi & Nilai Keaktifan Santri</h3>
+              <p class="card-desc">Pilih slot kegiatan, tanggal, dan kelas, lalu catat kehadiran serta skor keaktifan</p>
+            </div>
+            <div class="slot-now-alert" id="slot-now-alert">
+              <span class="live-dot"></span> Sesi Saat Ini: <strong id="slot-now-text">-</strong>
+            </div>
+          </div>
+
+          <div class="session-selector-bar">
+            <div class="form-group-inline">
+              <label for="ustadz-input-date">📅 Tanggal:</label>
+              <input type="date" id="ustadz-input-date" class="form-control">
+            </div>
+
+            <div class="form-group-inline flex-2">
+              <label for="ustadz-input-slot">⏰ Slot Kegiatan Pondok:</label>
+              <select id="ustadz-input-slot" class="form-control select-highlight">
+                <option value="slot-1">05.20 - 06.00 - Halaqoh Al Quran</option>
+                <option value="slot-2">07.30 - 08.00 - Apel Pagi</option>
+                <option value="slot-3">08.00 - 08.40 - Pelajaran 1</option>
+                <option value="slot-4">08.40 - 09.20 - Pelajaran 2</option>
+                <option value="slot-5">09.20 - 10.00 - Pelajaran 3</option>
+                <option value="slot-6">10.00 - 10.30 - Istirahat (Istirahat)</option>
+                <option value="slot-7">10.30 - 11.10 - Pelajaran 4</option>
+                <option value="slot-8">11.10 - 11.50 - Pelajaran 5</option>
+                <option value="slot-9">16.00 - 16.40 - Halaqoh Tahfidz Murojaah atau Lughoh</option>
+                <option value="slot-10">18.30 - 19.10 - Taklim Umum</option>
+                <option value="slot-11">19.30 - 20.10 - Halaqoh Al Quran</option>
+              </select>
+            </div>
+
+            <div class="form-group-inline">
+              <label for="ustadz-input-kelas">🏫 Kelas / Halaqoh:</label>
+              <select id="ustadz-input-kelas" class="form-control">
+                <option value="Kelas 7A">Kelas 7A (Putra)</option>
+                <option value="Kelas 7B">Kelas 7B (Putri)</option>
+                <option value="Kelas 8A">Kelas 8A (Putra)</option>
+              </select>
+            </div>
+
+            <button type="button" class="btn btn-outline" id="btn-refresh-session">
+              Muat Ulang Form
+            </button>
+          </div>
+
+          <div class="batch-tools-bar">
+            <div class="batch-tools-left">
+              <span class="batch-label">Alat Cepat:</span>
+              <button type="button" class="btn btn-sm btn-light-success" id="btn-batch-all-hadir">
+                ✅ Tandai Semua Hadir
+              </button>
+              <button type="button" class="btn btn-sm btn-light-warning" id="btn-batch-all-aktif">
+                ⭐ Set Semua: Aktif (Skor 4)
+              </button>
+            </div>
+            <div class="batch-tools-right">
+              <span class="badge badge-info" id="badge-session-status">Belum Disimpan</span>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table input-table" id="table-input-attendance">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">No</th>
+                  <th style="width: 240px;">Santri & NIS</th>
+                  <th style="width: 250px;">Status Kehadiran</th>
+                  <th style="width: 260px;">Skor Keaktifan (1 - 5)</th>
+                  <th>Catatan Khusus Ustadz</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-input-attendance"></tbody>
+            </table>
+          </div>
+
+          <div class="form-save-footer">
+            <div class="save-footer-info">
+              <span class="text-muted" id="save-last-timestamp">Pastikan seluruh data kehadiran dan keaktifan telah terisi dengan benar.</span>
+            </div>
+            <div class="save-footer-actions">
+              <button type="button" class="btn btn-lg btn-success" id="btn-save-attendance">
+                <span class="btn-icon">💾</span> Simpan Absensi & Keaktifan Sesi Ini
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Riwayat Sesi yang Telah Anda Input Hari Ini</h3>
+              <p class="card-desc">Daftar sesi yang sudah tersimpan ke server dan langsung dapat dipantau oleh Orang Tua</p>
+            </div>
+          </div>
+          <div class="ustadz-history-list" id="ustadz-history-list"></div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- VIEW 3: ORANG TUA / WALI SANTRI PORTAL -->
+      <!-- ======================================================== -->
+      <section class="portal-view" id="view-wali" style="display: none;">
+        <div class="wali-profile-card">
+          <div class="wali-card-left">
+            <div class="santri-photo-frame">
+              <img src="" alt="Foto Santri" class="santri-photo" id="wali-santri-avatar">
+            </div>
+            <div class="santri-info-block">
+              <div class="parent-salutation">
+                Assalamu'alaikum, <strong id="wali-parent-name">Bpk. Hendra Gunawan</strong> (Wali Santri)
+              </div>
+              <h2 class="santri-full-name" id="wali-santri-name">Muhammad Rayhan Al-Fatih</h2>
+              <div class="santri-meta-tags">
+                <span class="meta-tag">NIS: <strong id="wali-santri-nis">202607001</strong></span>
+                <span class="meta-tag">Kelas: <strong id="wali-santri-kelas">Kelas 7A</strong></span>
+                <span class="meta-tag">Asrama: <strong id="wali-santri-asrama">Kamar Bilal Bin Robah #01</strong></span>
+                <span class="meta-tag">Musyrif: <strong id="wali-santri-musyrif">Ustadz Ahmad Fauzi</strong></span>
+              </div>
+            </div>
+          </div>
+          <div class="wali-card-right">
+            <div class="keaktifan-summary-box">
+              <div class="keaktifan-box-title">Indeks Keaktifan & Disiplin Belajar</div>
+              <div class="keaktifan-stat">
+                <span class="keaktifan-score-val" id="wali-keaktifan-score">4.8 / 5.0</span>
+                <span class="keaktifan-level-badge" id="wali-keaktifan-status">Mumtaz (96%)</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-fill" id="wali-keaktifan-bar" style="width: 96%;"></div>
+              </div>
+              <span class="keaktifan-notes" id="wali-keaktifan-notes">Konsisten hadir tepat waktu & sangat aktif di seluruh 11 sesi kegiatan harian.</span>
+            </div>
+            <div class="wali-quick-btn-wrap" style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-outline-white" id="btn-hubungi-musyrif">
+                💬 Hubungi Pembimbing via WA
+              </button>
+              <button type="button" class="btn btn-primary" id="btn-cetak-rapor-wali">
+                📄 Cetak Rapor Keaktifan
+              </button>
+              <a href="https://bilal-tahfizh.vercel.app/" target="_blank" rel="noopener noreferrer" class="btn btn-outline-white" id="btn-wali-buka-tahfizh" title="Buka Portal Pantau Hafalan Anak di Tab Baru" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <span>📖</span> Pantau Hafalan Anak ↗
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="wali-today-strip">
+          <div class="strip-col">
+            <span class="strip-label">Status Kehadiran Hari Ini:</span>
+            <div class="strip-val" id="wali-today-attendance-badge">
+              <span class="badge badge-success-lg">✅ 10 / 10 Sesi Hadir (100%)</span>
+            </div>
+          </div>
+          <div class="strip-col">
+            <span class="strip-label">Rata-rata Skor Keaktifan Hari Ini:</span>
+            <div class="strip-val" id="wali-today-score-badge">
+              <span class="badge badge-amber-lg">⭐ 4.8 / 5.0 (Sangat Aktif)</span>
+            </div>
+          </div>
+          <div class="strip-col">
+            <span class="strip-label">Catatan Terakhir Ustadz:</span>
+            <div class="strip-quote" id="wali-today-last-note">
+              "Alhamdulillah hafalan surat An-Naba sangat lancar dengan makharijul huruf tepat."
+            </div>
+          </div>
+        </div>
+
+        <div class="wali-charts-grid">
+          <!-- CHART 1: PIE / DONUT CHART KEHADIRAN BULANAN -->
+          <div class="content-card chart-card">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">Persentase Kehadiran Bulanan</h3>
+                <p class="card-desc">Komposisi kehadiran: Hadir, Izin, Sakit, dan Alpa</p>
+              </div>
+              <span class="badge badge-primary" id="wali-pie-month-badge">Bulan Ini</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-wali-pie" width="340" height="260"></canvas>
+            </div>
+            <div class="chart-legends-wrap" id="wali-pie-legends"></div>
+          </div>
+
+          <!-- CHART 2: LINE CHART TREN KEAKTIFAN SANTRI DENGAN PENGATURAN PEKAN & BULAN FLEKSIBEL -->
+          <div class="content-card chart-card">
+            <div class="card-header-actions chart-header-actions-flex">
+              <div>
+                <h3 class="card-title">Tren Perkembangan Keaktifan Santri</h3>
+                <p class="card-desc" id="chart-wali-desc">Grafik pemantauan skor keaktifan harian santri (Skala 1.0 - 5.0)</p>
+              </div>
+
+              <!-- PENGATURAN PEKAN DAN BULAN FLEKSIBEL -->
+              <div class="chart-monitoring-toolbar">
+                <!-- Toggle Mode: Pekan vs Bulan -->
+                <div class="chart-mode-pill-toggle">
+                  <button type="button" class="btn-mode-toggle active" id="btn-chart-mode-pekan" data-mode="pekan">
+                    <span>⚡</span> Mode Pekan
+                  </button>
+                  <button type="button" class="btn-mode-toggle" id="btn-chart-mode-bulan" data-mode="bulan">
+                    <span>🗓️</span> Mode Bulan
+                  </button>
+                </div>
+
+                <!-- Kontrol Pilih Pekan (Aktif pada Mode Pekan) -->
+                <div class="chart-period-subgroup" id="subgroup-pekan-controls">
+                  <button type="button" class="btn-chart-nav-step" id="btn-chart-prev-week" title="Pekan Sebelumnya">◀</button>
+                  <select id="select-chart-pekan" class="select-chart-picker">
+                    <option value="pekan-1">Pekan 1 (16 - 22 Okt 2026)</option>
+                    <option value="pekan-2" selected>Pekan 2 (23 - 29 Okt 2026)</option>
+                    <option value="pekan-3">Pekan 3 (30 Okt - 05 Nov 2026)</option>
+                    <option value="pekan-4">Pekan 4 (06 - 12 Nov 2026)</option>
+                  </select>
+                  <button type="button" class="btn-chart-nav-step" id="btn-chart-next-week" title="Pekan Berikutnya">▶</button>
+                </div>
+
+                <!-- Kontrol Pilih Bulan (Aktif pada Mode Bulan) -->
+                <div class="chart-period-subgroup" id="subgroup-bulan-controls" style="display: none;">
+                  <button type="button" class="btn-chart-nav-step" id="btn-chart-prev-month" title="Bulan Sebelumnya">◀</button>
+                  <select id="select-chart-bulan" class="select-chart-picker">
+                    <option value="2026-10" selected>Bulan Oktober 2026</option>
+                    <option value="2026-09">Bulan September 2026</option>
+                    <option value="2026-11">Bulan November 2026</option>
+                    <option value="last-30">30 Hari Terakhir</option>
+                  </select>
+                  <button type="button" class="btn-chart-nav-step" id="btn-chart-next-month" title="Bulan Berikutnya">▶</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="chart-container line-chart-container" id="line-chart-wrapper" style="position: relative;">
+              <canvas id="chart-wali-line" width="600" height="280"></canvas>
+              <!-- Interactive Tooltip Overlay -->
+              <div id="chart-tooltip" class="chart-interactive-tooltip" style="display: none;"></div>
+            </div>
+
+            <div class="chart-meta-footer">
+              <div class="legend-item"><span class="legend-color-dot dot-emerald"></span> Skor Keaktifan Harian</div>
+              <div class="legend-item"><span class="legend-color-dot dot-dashed"></span> Target Minimal Aktif (4.0)</div>
+              <div class="legend-item score-note">
+                <span id="wali-score-label">Rata-rata:</span> <strong id="wali-week-avg">4.7 / 5.0</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- REAL-TIME TIMELINE FEED -->
+        <div class="content-card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Ringkasan Laporan Harian & Catatan Ustadz (Real-Time)</h3>
+              <p class="card-desc">Detail pemantauan slot demi slot hari ini, terbarui otomatis saat ustadz melakukan input</p>
+            </div>
+            <span class="badge badge-success">Live Sync Terhubung</span>
+          </div>
+
+          <div class="wali-timeline-feed" id="wali-timeline-feed"></div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="app-footer">
+      <div class="footer-left">
+        <strong>Pondok Pesantren Bilal Bin Robah</strong> • SISPENSI SANTRI (Sistem Presensi & Pemantauan Keaktifan Santri Terpadu)
+      </div>
+      <div class="footer-right">
+        <span>NPSN: 69982143 • Versi 3.0.0 • SISPENSI SANTRI</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: SETTING TEMA, WALLPAPER & FONT (RODA GIGI) -->
+  <!-- ======================================================== -->
+  <div class="modal-overlay hidden" id="modal-settings">
+    <div class="modal-content modal-settings-dialog">
+      <div class="modal-header">
+        <h3 style="color: var(--gold-400); font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+          <span>⚙️</span> Pengaturan Tampilan & Tema
+        </h3>
+        <button type="button" class="close-btn" id="btn-close-modal-settings">&times;</button>
+      </div>
+
+      <div class="modal-body settings-modal-body">
+        <!-- 1. SETTING TEMA & WARNA AKSEN -->
+        <div class="settings-group">
+          <label class="settings-label">
+            <span>🎨</span> Tema Mode & Warna Aksen Utama:
+          </label>
+          <div class="theme-mode-toggle-row">
+            <button type="button" class="theme-mode-btn active" id="setting-theme-dark" data-mode="dark">
+              🌙 Mode Gelap (Dark Navy)
+            </button>
+            <button type="button" class="theme-mode-btn" id="setting-theme-light" data-mode="light">
+              ☀️ Mode Terang (Clean Light)
+            </button>
+          </div>
+
+          <div class="color-swatches-row" style="margin-top: 12px;">
+            <button type="button" class="swatch-btn active" data-color="#0ea5e9" style="background: #0ea5e9;" title="Cyber Cyan (Default SISPENSI)">✓</button>
+            <button type="button" class="swatch-btn" data-color="#10b981" style="background: #10b981;" title="Emerald Green"></button>
+            <button type="button" class="swatch-btn" data-color="#6366f1" style="background: #6366f1;" title="Indigo Tech"></button>
+            <button type="button" class="swatch-btn" data-color="#3b82f6" style="background: #3b82f6;" title="Royal Blue"></button>
+            <button type="button" class="swatch-btn" data-color="#0d9488" style="background: #0d9488;" title="Teal Academic"></button>
+            <button type="button" class="swatch-btn" data-color="#f59e0b" style="background: #f59e0b;" title="Amber Gold"></button>
+            <label class="swatch-btn swatch-custom" title="Pilih Warna Kustom Sendiri">
+              🎨
+              <input type="color" id="setting-custom-color" value="#0ea5e9" class="sr-only">
+            </label>
+          </div>
+        </div>
+
+        <div class="card-divider" style="margin: 16px 0;"></div>
+
+        <!-- 2. SETTING WALLPAPER LATAR BELAKANG -->
+        <div class="settings-group">
+          <label class="settings-label">
+            <span>🖼️</span> Wallpaper Latar Belakang:
+          </label>
+          <div class="wallpaper-presets-grid">
+            <div class="wp-card active" data-wp="preset-default" style="background: radial-gradient(circle at top center, #0c1a2d 0%, #030811 100%);">
+              <span class="wp-name">SISPENSI Navy</span>
+            </div>
+            <div class="wp-card" data-wp="preset-emerald" style="background: linear-gradient(135deg, #064e3b 0%, #021a14 100%);">
+              <span class="wp-name">Zamrud Academic</span>
+            </div>
+            <div class="wp-card" data-wp="preset-velvet" style="background: radial-gradient(circle at top right, #1e1b4b 0%, transparent 60%), radial-gradient(circle at bottom left, #0f172a 0%, transparent 50%), #020617;">
+              <span class="wp-name">Midnight Indigo</span>
+            </div>
+            <div class="wp-card" data-wp="preset-cosmic" style="background: linear-gradient(135deg, #0369a1 0%, #082f49 50%, #020617 100%);">
+              <span class="wp-name">Deep Cyan Tech</span>
+            </div>
+            <div class="wp-card" data-wp="preset-slate" style="background: linear-gradient(135deg, #1e293b 0%, #0b1120 100%);">
+              <span class="wp-name">Minimalist Slate</span>
+            </div>
+            <div class="wp-card" data-wp="preset-arabesque" style="background-color: #070d19; background-image: radial-gradient(#0ea5e9 1px, transparent 1px); background-size: 16px 16px;">
+              <span class="wp-name">Cyber Grid</span>
+            </div>
+          </div>
+
+          <!-- UPLOAD WALLPAPER CUSTOM -->
+          <div class="wp-upload-wrap" style="margin-top: 10px;">
+            <label for="input-custom-wallpaper" class="btn btn-sm btn-outline-white" style="width: 100%; cursor: pointer;">
+              📁 Unggah Wallpaper dari Komputer (Foto / Gambar)
+            </label>
+            <input type="file" id="input-custom-wallpaper" accept="image/*" class="sr-only">
+          </div>
+        </div>
+
+        <div class="card-divider" style="margin: 16px 0;"></div>
+
+        <!-- 3. SETTING FONT TIPOGRAFI & UKURAN -->
+        <div class="settings-group">
+          <label class="settings-label">
+            <span>🔤</span> Jenis Huruf (Font Family):
+          </label>
+          <div class="font-presets-grid">
+            <button type="button" class="font-card active" data-font="jakarta" style="font-family: 'Plus Jakarta Sans', system-ui, sans-serif;">
+              <strong>Plus Jakarta Sans</strong>
+              <small>Modern, Bersih & Tajam</small>
+            </button>
+            <button type="button" class="font-card" data-font="system" style="font-family: 'Segoe UI', system-ui, sans-serif;">
+              <strong>Segoe UI / System</strong>
+              <small>Standar Windows Native</small>
+            </button>
+            <button type="button" class="font-card" data-font="amiri" style="font-family: 'Georgia', 'Amiri', serif;">
+              <strong>Serif Klasik Pesantren</strong>
+              <small>Elegan & Berwibawa</small>
+            </button>
+            <button type="button" class="font-card" data-font="poppins" style="font-family: 'Trebuchet MS', 'Poppins', sans-serif;">
+              <strong>Modern Geometric</strong>
+              <small>Ramah & Kontemporer</small>
+            </button>
+          </div>
+
+          <div style="margin-top: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 0.8rem; font-weight: 700; color: #94a3b8;">Ukuran Huruf (Font Scale):</span>
+            <div class="font-scale-pills">
+              <button type="button" class="scale-btn active" data-scale="100%">Normal (100%)</button>
+              <button type="button" class="scale-btn" data-scale="108%">Sedang (108%)</button>
+              <button type="button" class="scale-btn" data-scale="116%">Besar (116%)</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="margin-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+          <button type="button" class="btn btn-outline" id="btn-reset-settings" style="color: #94a3b8;">
+            Reset Standar
+          </button>
+          <button type="button" class="btn btn-amber" id="btn-save-settings">
+            Simpan Pengaturan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: PEMILIHAN SANTRI UNTUK WALI (LOGIN TANPA SANDI) -->
+  <!-- ======================================================== -->
+  <div class="modal-overlay hidden" id="modal-wali-select">
+    <div class="modal-content modal-wali-content">
+      <div class="modal-header">
+        <h3 style="color: var(--primary-accent); font-size: 1.25rem;">👨‍👩‍👧 Pantau Keaktifan Ananda</h3>
+        <button type="button" class="close-btn" id="btn-close-modal-wali">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 10px 0;">
+        <div class="wali-modal-banner">
+          <span style="font-size: 1.4rem;">✨</span>
+          <div>
+            <strong>Akses Langsung Tanpa Kata Sandi</strong>
+            <p style="font-size: 0.78rem; margin: 2px 0 0 0; color: #94a3b8;">
+              Silakan pilih nama ananda untuk langsung membuka grafik kehadiran, indeks keaktifan belajar, dan catatan dewan ustadz.
+            </p>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 16px;">
+          <label for="select-santri-wali-modal" style="color: #f8fafc; font-size: 0.85rem; font-weight: 700;">
+            Pilih Nama Ananda / Santri:
+          </label>
+          <select id="select-santri-wali-modal" class="login-select" style="text-align: left; padding: 12px 14px; margin-top: 6px;">
+            <option value="">-- Pilih Nama Santri --</option>
+            <!-- Injected via JS -->
+          </select>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <span style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase;">
+            Pilihan Cepat Santri:
+          </span>
+          <div class="quick-santri-grid" id="quick-santri-grid"></div>
+        </div>
+
+        <div class="btn-group" style="margin-top: 22px;">
+          <button type="button" class="btn-batal" id="btn-batal-wali">Batal</button>
+          <button type="button" class="btn-login-primary" id="btn-confirm-wali" style="margin-top: 0; padding: 14px;">
+            Buka Pantauan Keaktifan Ananda
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: LOGIN ADMIN -->
+  <!-- ======================================================== -->
+  <div class="modal-overlay hidden" id="modal-admin-login">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: var(--primary-accent);">Otoritas Admin Pondok</h3>
+        <button type="button" class="close-btn" id="btn-close-modal-admin">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 10px 0;">
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 14px;">
+          Masukkan kata sandi pengurus admin Pondok Pesantren Bilal Bin Robah:
+        </p>
+        <input type="password" id="admin-password" class="login-input" placeholder="Masukkan kata sandi admin..." autocomplete="current-password">
+        <div class="btn-group">
+          <button type="button" class="btn-batal" id="btn-batal-admin">Batal</button>
+          <button type="button" class="btn-login-primary" id="btn-submit-admin" style="margin-top: 0; padding: 14px;">
+            Akses Admin
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: TAMBAH / EDIT SANTRI -->
+  <!-- ======================================================== -->
+  <div class="modal-backdrop" id="modal-santri" style="display: none;">
+    <div class="modal-dialog modal-dialog-lg">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <div class="modal-header-icon">🎓</div>
+          <div>
+            <h3 class="modal-title" id="modal-santri-title">Tambah Data Santri Baru</h3>
+            <p class="modal-subtitle">Pondok Pesantren Bilal Bin Robah • Master Data Santri</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-santri" title="Tutup Jendela">&times;</button>
+      </div>
+
+      <!-- MODE SWITCHER TABS: MANUAL VS SPREADSHEET IMPORT -->
+      <div class="modal-tabs-container" id="santri-modal-tabs-container">
+        <div class="modal-segmented-tabs">
+          <button type="button" class="modal-tab-btn active" id="tab-btn-santri-manual">
+            <span class="tab-icon">✍️</span> Input Formulir Manual
+          </button>
+          <button type="button" class="modal-tab-btn" id="tab-btn-santri-spreadsheet">
+            <span class="tab-icon">📊</span> Tambah via Spreadsheet (CSV / Excel)
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <!-- PANE 1: FORMULIR MANUAL -->
+        <div id="pane-santri-manual" class="modal-content-pane">
+          <form id="form-santri" onsubmit="return false;">
+            <input type="hidden" id="santri-edit-id" value="">
+
+            <div class="form-section-title">
+              <span>👤</span> Identitas Santri
+            </div>
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="santri-nis"><span>🆔</span> NIS (Nomor Induk Santri) *</label>
+                <input type="text" id="santri-nis" class="form-control" required placeholder="Contoh: 202607015">
+              </div>
+              <div class="form-group flex-2">
+                <label for="santri-nama"><span>📝</span> Nama Lengkap Santri *</label>
+                <input type="text" id="santri-nama" class="form-control" required placeholder="Masukkan nama lengkap santri">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="santri-kelas"><span>🏫</span> Kelas / Halaqoh *</label>
+                <input type="text" id="santri-kelas" class="form-control" list="datalist-kelas" required placeholder="Ketik manual kelas / halaqoh...">
+                <datalist id="datalist-kelas">
+                  <option value="Kelas 7A">
+                  <option value="Kelas 7B">
+                  <option value="Kelas 8A">
+                </datalist>
+              </div>
+              <div class="form-group flex-1">
+                <label for="santri-asrama"><span>🏠</span> Kamar / Asrama</label>
+                <input type="text" id="santri-asrama" class="form-control" placeholder="Contoh: Kamar Bilal Bin Robah #01">
+              </div>
+            </div>
+
+            <div class="form-section-title" style="margin-top: 14px;">
+              <span>👨‍👩‍👦</span> Data Orang Tua & Pembimbing
+            </div>
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="santri-wali"><span>👨‍💼</span> Nama Orang Tua / Wali *</label>
+                <input type="text" id="santri-wali" class="form-control" required placeholder="Contoh: Bpk. Hendra Gunawan">
+              </div>
+              <div class="form-group flex-1">
+                <label for="santri-wa"><span>💬</span> No. WhatsApp Wali</label>
+                <input type="text" id="santri-wa" class="form-control" placeholder="Contoh: 081234567890">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="santri-musyrif"><span>👳‍♂️</span> Musyrif / Pembimbing</label>
+                <input type="text" id="santri-musyrif" class="form-control" placeholder="Contoh: Ustadz Ahmad Fauzi">
+              </div>
+              <div class="form-group flex-1">
+                <label for="santri-tahfidz"><span>🎯</span> Target & Capaian Belajar</label>
+                <input type="text" id="santri-tahfidz" class="form-control" placeholder="Contoh: 4.5 Juz / Target 5.0 Juz">
+              </div>
+            </div>
+
+            <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 16px;">
+              <button type="button" class="btn btn-outline" data-close-modal="modal-santri">
+                <span>❌</span> Batal
+              </button>
+              <button type="submit" class="btn btn-primary" id="btn-save-santri">
+                <span>💾</span> Simpan Data Santri
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- PANE 2: IMPORT VIA SPREADSHEET (CSV / EXCEL) -->
+        <div id="pane-santri-spreadsheet" class="modal-content-pane" style="display: none;">
+          <div class="spreadsheet-workflow-container">
+            <!-- LANGKAH 1: UNDUH TEMPLATE -->
+            <div class="workflow-card step-download-card">
+              <div class="workflow-step-badge">Langkah 1</div>
+              <div class="workflow-step-content">
+                <div class="workflow-step-header">
+                  <div class="step-icon">📥</div>
+                  <div>
+                    <h4 class="step-title">Unduh Format Template Spreadsheet</h4>
+                    <p class="step-desc">
+                      Gunakan file template (.csv) resmi yang kompatibel langsung dengan Microsoft Excel, Google Sheets, dan WPS Office.
+                      Template telah dilengkapi judul kolom terstandar dan 3 baris data contoh pengisian.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="template-columns-tags">
+                  <span class="col-tag">NIS</span>
+                  <span class="col-tag">Nama Lengkap</span>
+                  <span class="col-tag">Jenis Kelamin (L/P)</span>
+                  <span class="col-tag">Kelas</span>
+                  <span class="col-tag">Kamar Asrama</span>
+                  <span class="col-tag">Nama Wali</span>
+                  <span class="col-tag">No WhatsApp Wali</span>
+                  <span class="col-tag">Musyrif Pembimbing</span>
+                  <span class="col-tag">Target Capaian</span>
+                </div>
+
+                <div class="step-action-row">
+                  <button type="button" class="btn btn-success-gradient" id="btn-download-santri-template">
+                    <span class="btn-icon">📥</span> Unduh Format Template (.CSV / Excel)
+                  </button>
+                  <span class="step-hint">💡 Format UTF-8 with BOM: langsung rapi dibuka di Excel tanpa tulisan berantakan.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- LANGKAH 2: UNGGAH & PROSES -->
+            <div class="workflow-card step-upload-card">
+              <div class="workflow-step-badge">Langkah 2</div>
+              <div class="workflow-step-content">
+                <div class="workflow-step-header">
+                  <div class="step-icon">📤</div>
+                  <div>
+                    <h4 class="step-title">Unggah File Spreadsheet yang Telah Diisi</h4>
+                    <p class="step-desc">
+                      Simpan file yang telah diisi dalam format .CSV, lalu pilih atau seret file tersebut ke area di bawah ini.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- DROPZONE -->
+                <div class="spreadsheet-dropzone" id="santri-dropzone">
+                  <input type="file" id="input-santri-file" accept=".csv,text/csv,application/vnd.ms-excel" style="display: none;">
+                  <div class="dropzone-content">
+                    <div class="dropzone-icon">📑</div>
+                    <div class="dropzone-text">
+                      <strong>Klik untuk memilih file spreadsheet</strong> atau seret file ke sini
+                    </div>
+                    <span class="dropzone-sub">Mendukung format .CSV (Koma atau Titik-Koma) hasil ekspor Excel</span>
+                  </div>
+                </div>
+
+                <!-- PREVIEW BOX (SHOWN WHEN FILE LOADED) -->
+                <div id="santri-csv-preview-wrap" style="display: none; margin-top: 14px;">
+                  <div class="preview-header-bar">
+                    <div class="file-info-badge">
+                      <span class="file-icon">📄</span>
+                      <span id="preview-file-name">data_santri.csv</span>
+                      <span class="file-size-tag" id="preview-file-size">1.8 KB</span>
+                    </div>
+                    <div class="preview-stats-pills">
+                      <span class="badge badge-success" id="preview-row-count">0 Baris Terbaca</span>
+                    </div>
+                  </div>
+
+                  <div class="import-options-bar">
+                    <label class="checkbox-option">
+                      <input type="checkbox" id="check-update-existing" checked>
+                      <span>Perbarui data otomatis jika NIS sudah terdaftar di sistem</span>
+                    </label>
+                  </div>
+
+                  <div class="mini-preview-scroll">
+                    <table class="data-table preview-table" id="table-csv-preview">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>NIS</th>
+                          <th>Nama Lengkap</th>
+                          <th>Kelas</th>
+                          <th>Asrama</th>
+                          <th>Wali</th>
+                          <th>WhatsApp</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tbody-csv-preview"></tbody>
+                    </table>
+                  </div>
+
+                  <div class="import-actions-row">
+                    <button type="button" class="btn btn-outline" id="btn-cancel-import-preview">
+                      <span>🔄</span> Ganti File
+                    </button>
+                    <button type="button" class="btn btn-primary-gradient" id="btn-execute-import-santri">
+                      <span>🚀</span> Proses & Simpan ke Database Santri
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer" id="footer-spreadsheet-default" style="padding: 16px 0 0 0; margin-top: 16px;">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-santri">
+              <span>❌</span> Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: TAMBAH / EDIT USTADZ -->
+  <!-- ======================================================== -->
+  <div class="modal-backdrop" id="modal-ustadz" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <div class="modal-header-icon">👨‍🏫</div>
+          <div>
+            <h3 class="modal-title" id="modal-ustadz-title">Tambah Data Ustadz / Pengajar</h3>
+            <p class="modal-subtitle">Pondok Pesantren Bilal Bin Robah • Tenaga Pengajar</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-ustadz" title="Tutup">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-ustadz" onsubmit="return false;">
+          <input type="hidden" id="ustadz-edit-id" value="">
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="ustadz-nip"><span>🆔</span> NIP / ID Ustadz:</label>
+              <input type="text" id="ustadz-nip" class="form-control" required placeholder="198804122015011002">
+            </div>
+            <div class="form-group flex-2">
+              <label for="ustadz-nama"><span>👤</span> Nama Lengkap & Gelar:</label>
+              <input type="text" id="ustadz-nama" class="form-control" required placeholder="Ustadz Ahmad Fauzi, S.Pd.I">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="ustadz-bidang"><span>📖</span> Bidang / Pengampu:</label>
+              <input type="text" id="ustadz-bidang" class="form-control" required placeholder="Halaqoh Al-Quran & Fiqih">
+            </div>
+            <div class="form-group flex-1">
+              <label for="ustadz-username"><span>🔑</span> Username Login:</label>
+              <input type="text" id="ustadz-username" class="form-control" required placeholder="ustadz.ahmad">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="ustadz-wa"><span>💬</span> No. WhatsApp:</label>
+              <input type="text" id="ustadz-wa" class="form-control" placeholder="0813xxxxxxxx">
+            </div>
+            <div class="form-group flex-1">
+              <label for="ustadz-password"><span>🔒</span> Kata Sandi:</label>
+              <input type="password" id="ustadz-password" class="form-control" placeholder="guru123">
+            </div>
+          </div>
+
+          <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 16px;">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-ustadz">
+              <span>❌</span> Batal
+            </button>
+            <button type="submit" class="btn btn-primary" id="btn-save-ustadz">
+              <span>💾</span> Simpan Data Ustadz
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: TAMBAH / EDIT MASTER JADWAL SLOT -->
+  <!-- ======================================================== -->
+  <div class="modal-backdrop" id="modal-slot" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <div class="modal-header-icon">⏰</div>
+          <div>
+            <h3 class="modal-title" id="modal-slot-title">Tambah Slot Waktu Baru</h3>
+            <p class="modal-subtitle">Pondok Pesantren Bilal Bin Robah • Master Jadwal Harian</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-slot" title="Tutup">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-slot" onsubmit="return false;">
+          <input type="hidden" id="slot-edit-id" value="">
+
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="slot-name"><span>🏷️</span> Nama Kegiatan / Sesi:</label>
+              <input type="text" id="slot-name" class="form-control" required placeholder="Contoh: Halaqoh Al Quran, Pelajaran 1, dll">
+            </div>
+            <div class="form-group flex-1">
+              <label for="slot-icon"><span>✨</span> Ikon Simbol:</label>
+              <select id="slot-icon" class="form-control" required>
+                <option value="📖">📖 Halaqoh / Al-Quran</option>
+                <option value="☀️">☀️ Apel Pagi / Kedisiplinan</option>
+                <option value="📚">📚 Pelajaran / Kitab</option>
+                <option value="🕌">🕌 Ibadah / Sholat</option>
+                <option value="☕">☕ Istirahat / Dhuha</option>
+                <option value="📜">📜 Tajwid / Hadits</option>
+                <option value="🔬">🔬 Sains / Eksakta</option>
+                <option value="🗣️">🗣️ Bahasa / Lughoh</option>
+                <option value="🎙️">🎙️ Taklim / Kajian</option>
+                <option value="🏃">🏃 Olahraga / Ekstra</option>
+                <option value="✨">✨ Khusus / Lainnya</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="slot-start-time"><span>⏱️</span> Waktu Mulai (24 Jam):</label>
+              <div class="input-time-24h-wrap">
+                <input type="text" id="slot-start-time" class="form-control input-time-24h" list="datalist-times-start" placeholder="08:00" maxlength="5" required value="08:00" autocomplete="off">
+                <span class="time-pill-24">24 Jam</span>
+              </div>
+              <datalist id="datalist-times-start">
+                <option value="05:20">
+                <option value="07:30">
+                <option value="08:00">
+                <option value="08:40">
+                <option value="09:20">
+                <option value="10:00">
+                <option value="10:30">
+                <option value="11:10">
+                <option value="11:50">
+                <option value="16:00">
+                <option value="16:40">
+                <option value="18:30">
+                <option value="19:10">
+                <option value="19:30">
+                <option value="20:10">
+              </datalist>
+            </div>
+            <div class="form-group flex-1">
+              <label for="slot-end-time"><span>⌛</span> Waktu Selesai (24 Jam):</label>
+              <div class="input-time-24h-wrap">
+                <input type="text" id="slot-end-time" class="form-control input-time-24h" list="datalist-times-end" placeholder="08:40" maxlength="5" required value="08:40" autocomplete="off">
+                <span class="time-pill-24">24 Jam</span>
+              </div>
+              <datalist id="datalist-times-end">
+                <option value="06:00">
+                <option value="08:00">
+                <option value="08:40">
+                <option value="09:20">
+                <option value="10:00">
+                <option value="10:30">
+                <option value="11:10">
+                <option value="11:50">
+                <option value="16:00">
+                <option value="16:40">
+                <option value="18:30">
+                <option value="19:10">
+                <option value="19:30">
+                <option value="20:10">
+              </datalist>
+            </div>
+            <div class="form-group flex-1">
+              <label for="slot-is-break"><span>📋</span> Sifat Kegiatan:</label>
+              <select id="slot-is-break" class="form-control" required>
+                <option value="false">Wajib Absensi</option>
+                <option value="true">Non-Absensi (Jeda)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="slot-desc"><span>📝</span> Deskripsi & Keterangan Kegiatan:</label>
+            <input type="text" id="slot-desc" class="form-control" placeholder="Contoh: Penguatan hafalan baru atau materi fiqih safinah...">
+          </div>
+
+          <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 16px;">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-slot">
+              <span>❌</span> Batal
+            </button>
+            <button type="submit" class="btn btn-primary" id="btn-save-slot">
+              <span>💾</span> Simpan Slot Waktu
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: MASTER KELAS & HALAQOH (TAMBAH / EDIT) -->
+  <!-- ======================================================== -->
+  <div class="modal-backdrop" id="modal-kelas" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <div class="modal-header-icon">🏫</div>
+          <div>
+            <h3 class="modal-title" id="modal-kelas-title">Tambah Kelas / Halaqoh Baru</h3>
+            <p class="modal-subtitle">Pondok Pesantren Bilal Bin Robah • Master Rombongan Belajar</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-kelas" title="Tutup">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-kelas" onsubmit="return false;">
+          <input type="hidden" id="kelas-edit-id" value="">
+
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="kelas-nama"><span>🏷️</span> Nama Kelas / Halaqoh *</label>
+              <input type="text" id="kelas-nama" class="form-control" required placeholder="Contoh: Kelas 7A, Halaqoh Tahfidz Al-Fatih, dll">
+            </div>
+            <div class="form-group flex-1">
+              <label for="kelas-kategori"><span>📁</span> Kategori *</label>
+              <select id="kelas-kategori" class="form-control" required>
+                <option value="Kelas Reguler (Putra)">Kelas Reguler (Putra)</option>
+                <option value="Kelas Reguler (Putri)">Kelas Reguler (Putri)</option>
+                <option value="Halaqoh Tahfidz">Halaqoh Tahfidz</option>
+                <option value="Halaqoh Bahasa / Lughoh">Halaqoh Bahasa / Lughoh</option>
+                <option value="Kajian Kitab">Kajian Kitab</option>
+                <option value="Takhassus">Takhassus Intensif</option>
+                <option value="Umum">Umum / Lainnya</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="kelas-tingkat"><span>📊</span> Tingkatan / Jenjang:</label>
+              <select id="kelas-tingkat" class="form-control">
+                <option value="Kelas 7">Kelas 7 (Tingkat 1)</option>
+                <option value="Kelas 8">Kelas 8 (Tingkat 2)</option>
+                <option value="Kelas 9">Kelas 9 (Tingkat 3)</option>
+                <option value="Takhassus">Takhassus / Lanjutan</option>
+                <option value="Menengah">Tingkat Menengah</option>
+                <option value="Umum">Lintas Jenjang / Umum</option>
+              </select>
+            </div>
+            <div class="form-group flex-2">
+              <label for="kelas-pengampu"><span>👳‍♂️</span> Ustadz Pengampu / Musyrif:</label>
+              <select id="kelas-pengampu" class="form-control"></select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="kelas-ruang"><span>📍</span> Lokasi / Ruangan:</label>
+            <input type="text" id="kelas-ruang" class="form-control" placeholder="Contoh: Gedung Bilal Lt. 1 / Ruang 7A, Masjid Sayap Timur">
+          </div>
+
+          <div class="form-group">
+            <label for="kelas-deskripsi"><span>📝</span> Target Pembelajaran / Keterangan:</label>
+            <textarea id="kelas-deskripsi" class="form-control" rows="2" placeholder="Keterangan fokus materi, target hafalan, dsb..."></textarea>
+          </div>
+
+          <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 16px;">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-kelas">
+              <span>❌</span> Batal
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-save-kelas">
+              <span>💾</span> Simpan Kelas / Halaqoh
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: MUTASI & PINDAHKAN SANTRI ANTAR HALAQOH / KELAS -->
+  <!-- ======================================================== -->
+  <div class="modal-backdrop" id="modal-mutasi" style="display: none;">
+    <div class="modal-dialog modal-lg-dialog">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <div class="modal-header-icon" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8;">🔄</div>
+          <div>
+            <h3 class="modal-title">Pindahkan / Mutasi Santri Antar Kelas & Halaqoh</h3>
+            <p class="modal-subtitle">Pilih santri yang akan dipindahkan, lalu tentukan kelas atau halaqoh tujuan</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-mutasi" title="Tutup">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="mutasi-flow-grid">
+          <!-- Kolom Kiri: Kelas Asal & Pemilihan Santri -->
+          <div class="mutasi-col-panel">
+            <label for="mutasi-kelas-asal" class="mutasi-panel-label">
+              <span class="step-num">1</span> Pilih Kelas / Halaqoh Asal:
+            </label>
+            <select id="mutasi-kelas-asal" class="form-control select-highlight" style="margin-bottom: 12px;"></select>
+
+            <div class="mutasi-select-tools">
+              <span id="mutasi-selected-count-badge" class="badge badge-info">0 Santri Dipilih</span>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="btn btn-sm btn-outline" id="btn-mutasi-select-all">☑️ Pilih Semua</button>
+                <button type="button" class="btn btn-sm btn-outline" id="btn-mutasi-clear-all">⬜ Batal</button>
+              </div>
+            </div>
+
+            <!-- Daftar Santri di Kelas Asal -->
+            <div class="mutasi-santri-list-wrap" id="mutasi-santri-list"></div>
+          </div>
+
+          <!-- Kolom Kanan: Kelas Tujuan & Konfirmasi -->
+          <div class="mutasi-col-panel">
+            <label for="mutasi-kelas-tujuan" class="mutasi-panel-label">
+              <span class="step-num">2</span> Pindahkan ke Kelas / Halaqoh Tujuan:
+            </label>
+            <select id="mutasi-kelas-tujuan" class="form-control select-highlight" style="margin-bottom: 14px;"></select>
+
+            <div class="mutasi-option-box">
+              <label class="checkbox-label" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 0.85rem;">
+                <input type="checkbox" id="mutasi-sync-musyrif" checked style="margin-top: 3px; accent-color: #0ea5e9;">
+                <span><strong>Otomatis sinkronkan Musyrif Pengampu</strong><br><small class="text-muted">Nama Ustadz Musyrif santri akan diperbarui mengikuti pengampu kelas/halaqoh tujuan.</small></span>
+              </label>
+            </div>
+
+            <!-- Summary Box -->
+            <div class="mutasi-summary-card" id="mutasi-summary-card">
+              <div class="summary-icon">📋</div>
+              <div class="summary-text" id="mutasi-summary-text">
+                Pilih santri di sebelah kiri untuk melihat ringkasan pemindahan.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 16px;">
+          <button type="button" class="btn btn-outline" data-close-modal="modal-mutasi">
+            <span>❌</span> Batal
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-execute-mutasi" disabled>
+            <span>🚀</span> Eksekusi Pemindahan Santri
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: QUICK PINDAH HALAQOH (PER SANTRI) -->
+  <!-- ======================================================== -->
+  <div class="modal-backdrop" id="modal-quick-pindah" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <div class="modal-header-icon" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8;">🔄</div>
+          <div>
+            <h3 class="modal-title">Pindahkan Kelas / Halaqoh Santri</h3>
+            <p class="modal-subtitle">Perbarui penempatan rombel atau halaqoh santri secara instan</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-quick-pindah" title="Tutup">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="quick-pindah-santri-id" value="">
+        
+        <div class="quick-pindah-profile-box" id="quick-pindah-profile"></div>
+
+        <div class="form-group" style="margin-top: 14px;">
+          <label for="quick-pindah-kelas-target"><span>🏫</span> Pindahkan ke Kelas / Halaqoh Baru:</label>
+          <select id="quick-pindah-kelas-target" class="form-control select-highlight" style="font-weight: 700;"></select>
+        </div>
+
+        <div class="mutasi-option-box" style="margin-top: 10px;">
+          <label class="checkbox-label" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 0.85rem;">
+            <input type="checkbox" id="quick-pindah-sync-musyrif" checked style="margin-top: 3px; accent-color: #0ea5e9;">
+            <span><strong>Sesuaikan Musyrif Pengampu</strong><br><small class="text-muted">Perbarui pembimbing santri sesuai pengampu halaqoh baru.</small></span>
+          </label>
+        </div>
+
+        <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 16px;">
+          <button type="button" class="btn btn-outline" data-close-modal="modal-quick-pindah">
+            <span>❌</span> Batal
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-save-quick-pindah">
+            <span>✅</span> Simpan Pemindahan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: CETAK LAPORAN RESMI (PRINT VIEW) -->
+  <!-- ======================================================== -->
+  <div class="modal-backdrop" id="modal-print" style="display: none;">
+    <div class="modal-dialog modal-print-dialog">
+      <div class="modal-header no-print">
+        <h3 class="modal-title">Pratinjau Cetak Laporan Resmi</h3>
+        <div class="print-actions">
+          <button type="button" class="btn btn-success" onclick="window.print()">
+            🖨️ Cetak / Simpan PDF
+          </button>
+          <button type="button" class="modal-close" data-close-modal="modal-print">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body print-paper" id="print-paper-content">
+        <div class="letterhead">
+          <img src="logo.png" alt="Logo Pondok Pesantren Bilal Bin Robah" class="letterhead-logo">
+          <div class="letterhead-text">
+            <h2>PONDOK PESANTREN BILAL BIN ROBAH</h2>
+            <h3>LEMBAGA PENDIDIKAN DAN PENGEMBANGAN TAHFIDZ AL-QURAN</h3>
+            <p>Izin Operasional Kemenag: Kd.10.12/4/PP.00.7/1429/2018 • NPSN: 69982143</p>
+            <p class="address">Jl. Pesantren Bilal Bin Robah No. 01, Kompleks Tahfizh Al-Quran | Telp: (021) 8899-7766 | Email: sekretariat@bilalbinrobah.sch.id</p>
+          </div>
+        </div>
+        <div class="letterhead-line"></div>
+
+        <div class="print-doc-title">
+          <h3 id="print-doc-heading">REKAPITULASI ABSENSI DAN KEAKTIFAN SANTRI</h3>
+          <p id="print-doc-period">Periode: Oktober 2026 • Pondok Pesantren Bilal Bin Robah</p>
+        </div>
+
+        <div id="print-summary-metrics" class="print-metrics-row"></div>
+
+        <table class="print-table" id="table-print-content">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Tanggal</th>
+              <th>Slot Waktu & Kegiatan</th>
+              <th>Santri & Kelas</th>
+              <th>Status</th>
+              <th>Skor</th>
+              <th>Catatan Ustadz</th>
+              <th>Pengampu</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-print-content"></tbody>
+        </table>
+
+        <div class="print-signatures">
+          <div class="sig-col">
+            <p>Mengetahui,<br><strong>Kepala Kesantrian & Tahfizh</strong></p>
+            <div class="sig-space"></div>
+            <p class="sig-name">Ustadz Faiz Ramadhan, Lc.</p>
+            <p class="sig-nip">NIP. 199108152018021003</p>
+          </div>
+          <div class="sig-col">
+            <p>Ditetapkan di Bandung, 22 Oktober 2026<br><strong>Pimpinan Pondok Pesantren</strong></p>
+            <div class="sig-stamp-wrap">
+              <div class="sig-space"></div>
+              <div class="digital-stamp">TERVERIFIKASI SISTEM</div>
+            </div>
+            <p class="sig-name">Dr. H. Abdullah Mukhtar, M.Ag.</p>
+            <p class="sig-nip">NIP. 197505102001121001</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- APP SCRIPT -->
+  <script src="app.js"></script>
+</body>
+</html>
