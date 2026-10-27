@@ -96,6 +96,13 @@
       </div>
 
       <div class="header-right">
+        <!-- GOOGLE SPREADSHEET DATABASE SYNC BUTTON -->
+        <button type="button" class="btn-sheets-indicator" id="btn-open-sheets-config" aria-label="Buka Pengaturan Database Spreadsheet" title="Koneksi & Sinkronisasi Database Google Spreadsheet">
+          <span class="sheets-icon">📊</span>
+          <span class="sheets-btn-text">Spreadsheet</span>
+          <span class="sheets-status-dot disconnected" id="sheets-status-dot" title="Status: Belum Terhubung"></span>
+        </button>
+
         <!-- SETTINGS GEAR BUTTON -->
         <button type="button" class="btn-icon-toggle btn-setting-gear" id="btn-open-settings" aria-label="Buka Pengaturan Tema, Wallpaper & Font" title="Pengaturan Tampilan (Tema, Wallpaper, Font)">
           <span class="gear-icon">⚙️</span>
@@ -131,6 +138,25 @@
       <!-- VIEW 1: ADMIN PORTAL -->
       <!-- ======================================================== -->
       <section class="portal-view" id="view-admin" style="display: none;">
+        <!-- SPREADSHEET SYNC STATUS BANNER -->
+        <div class="sheets-sync-bar" id="sheets-sync-bar">
+          <div class="sync-bar-left">
+            <span class="sync-status-icon" id="sync-bar-icon">☁️</span>
+            <div class="sync-bar-text">
+              <strong id="sync-bar-title">Database Spreadsheet: Belum Terhubung</strong>
+              <span class="sync-bar-subtitle" id="sync-bar-subtitle">Hubungkan URL Web App Google Spreadsheet agar data ustadz & santri otomatis tersimpan ke Google Sheets.</span>
+            </div>
+          </div>
+          <div class="sync-bar-right">
+            <button type="button" class="btn btn-sm btn-outline" id="btn-sync-now-header" style="display: none;">
+              <span>🔄</span> Sinkronkan Sekarang
+            </button>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-connect-sheets-header">
+              <span>⚙️</span> Hubungkan Spreadsheet
+            </button>
+          </div>
+        </div>
+
         <!-- ADMIN NAVIGATION TABS -->
         <nav class="nav-tabs-bar" aria-label="Navigasi Admin">
           <button type="button" class="tab-btn active" data-admin-tab="dashboard" id="tab-admin-dashboard" title="Ringkasan & Dashboard">
@@ -293,7 +319,10 @@
                 <h3 class="card-title">Daftar Tenaga Pengajar & Ustadz</h3>
                 <p class="card-desc">Kelola data ustadz, NIP, pengampu halaqoh, serta hak akses login</p>
               </div>
-              <div class="header-btn-group">
+              <div class="header-btn-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-outline" id="btn-clean-dummy-ustadz" title="Hapus 4 data ustadz contoh/dummy bawaan agar hanya tersisa data asli Anda">
+                  <span class="btn-icon">🧹</span> Bersihkan Ustadz Dummy
+                </button>
                 <button type="button" class="btn btn-primary" id="btn-add-ustadz">
                   <span class="btn-icon">➕</span> Tambah Ustadz Baru
                 </button>
@@ -1735,10 +1764,134 @@
     </div>
   </div>
 
+  <!-- ======================================================== -->
+  <!-- MODAL: GOOGLE SPREADSHEET DATABASE INTEGRATION -->
+  <!-- ======================================================== -->
+  <div class="modal-backdrop" id="modal-sheets-config" style="display: none;">
+    <div class="modal-dialog modal-lg-dialog">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <div class="modal-header-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">📊</div>
+          <div>
+            <h3 class="modal-title">Integrasi Database Google Spreadsheet</h3>
+            <p class="modal-subtitle">Sinkronkan data santri, ustadz, kelas, dan absensi otomatis dengan Google Sheets</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-sheets-config" title="Tutup">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Live Status Card -->
+        <div class="sheets-conn-card" id="sheets-conn-card">
+          <div class="conn-status-row">
+            <div class="conn-indicator-wrap">
+              <span class="conn-pulse-dot" id="sheets-pulse-dot"></span>
+              <div>
+                <h4 class="conn-title" id="sheets-conn-title">Belum Terhubung ke Google Spreadsheet</h4>
+                <p class="conn-meta" id="sheets-conn-meta">Data saat ini tersimpan di browser lokal. Masukkan URL Web App untuk menghubungkan.</p>
+              </div>
+            </div>
+            <span class="badge badge-warning" id="sheets-conn-badge">Offline (Lokal)</span>
+          </div>
+
+          <div class="conn-stats-grid" id="sheets-conn-stats" style="display: none;">
+            <div class="mini-stat-box">
+              <span class="stat-box-num" id="sheet-stat-santri">0</span>
+              <span class="stat-box-lbl">Santri</span>
+            </div>
+            <div class="mini-stat-box">
+              <span class="stat-box-num" id="sheet-stat-ustadz">0</span>
+              <span class="stat-box-lbl">Ustadz</span>
+            </div>
+            <div class="mini-stat-box">
+              <span class="stat-box-num" id="sheet-stat-kelas">0</span>
+              <span class="stat-box-lbl">Kelas/Halaqoh</span>
+            </div>
+            <div class="mini-stat-box">
+              <span class="stat-box-num" id="sheet-stat-logs">0</span>
+              <span class="stat-box-lbl">Log Presensi</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- URL Input Form -->
+        <div class="form-group" style="margin-top: 16px;">
+          <label for="input-sheets-webapp-url">
+            <span>🔗</span> URL Web App Google Apps Script *
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <input type="url" id="input-sheets-webapp-url" class="form-control flex-1" placeholder="https://script.google.com/macros/s/AKfycb.../exec" autocomplete="off">
+            <button type="button" class="btn btn-outline" id="btn-test-sheets-url" style="white-space: nowrap;">
+              <span>🧪</span> Tes Koneksi
+            </button>
+          </div>
+          <small class="text-muted" style="display: block; margin-top: 6px;">
+            Spreadsheet ID: <code>1W97SdHXUTkTbUHadh7vIhZWsLMhV0NvmSQgZYDKieUE</code> • 
+            <a href="https://docs.google.com/spreadsheets/d/1W97SdHXUTkTbUHadh7vIhZWsLMhV0NvmSQgZYDKieUE/edit" target="_blank" style="color: #38bdf8; text-decoration: underline;">
+              Buka Google Spreadsheet Anda ↗
+            </a>
+          </small>
+        </div>
+
+        <div class="mutasi-option-box" style="margin-top: 12px;">
+          <label class="checkbox-label" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 0.85rem;">
+            <input type="checkbox" id="check-sheets-autosync" checked style="margin-top: 3px; accent-color: #10b981;">
+            <span><strong>Otomatis sinkronkan setiap perubahan data ke Spreadsheet</strong><br><small class="text-muted">Setiap kali Anda menambah/mengubah ustadz, santri, kelas, atau menyimpan absensi, data langsung dikirim ke Google Sheets secara otomatis di latar belakang.</small></span>
+          </label>
+        </div>
+
+        <!-- Action Sync Buttons -->
+        <div class="sheets-actions-bar" style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline" id="btn-sync-down-sheets" title="Download data terbaru dari Google Spreadsheet ke aplikasi">
+            <span>⬇️</span> Ambil Data dari Spreadsheet
+          </button>
+          <button type="button" class="btn btn-outline" id="btn-sync-up-sheets" title="Upload semua data di aplikasi (termasuk ustadz baru) ke Spreadsheet">
+            <span>⬆️</span> Kirim Data ke Spreadsheet
+          </button>
+          <button type="button" class="btn btn-outline" id="btn-purge-dummy-data" style="border-color: #f59e0b; color: #fbbf24;" title="Bersihkan 4 ustadz dummy bawaan & 12 santri dummy bawaan">
+            <span>🧹</span> Bersihkan Data Dummy
+          </button>
+        </div>
+
+        <!-- Collapsible Deployment Guide -->
+        <details class="sheets-guide-accordion" style="margin-top: 18px;">
+          <summary style="cursor: pointer; font-weight: 600; color: #38bdf8; padding: 8px 0;">
+            📖 Petunjuk Mudah: Cara Mendapatkan Web App URL di Google Apps Script (Klik untuk melihat)
+          </summary>
+          <div class="guide-accordion-content" style="padding: 12px; background: rgba(15, 23, 42, 0.4); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.85rem; line-height: 1.6; margin-top: 8px;">
+            <ol style="margin: 0; padding-left: 20px;">
+              <li>Buka file <code>Code.gs</code> di editor Google Apps Script spreadsheet Anda (<a href="https://docs.google.com/spreadsheets/d/1W97SdHXUTkTbUHadh7vIhZWsLMhV0NvmSQgZYDKieUE/edit" target="_blank" style="color: #38bdf8;">Buka Spreadsheet</a> > menu <em>Ekstensi</em> > <em>Apps Script</em>).</li>
+              <li>Pastikan isi file <code>Code.gs</code> sudah diperbarui dengan kode terbaru dari folder proyek ini, lalu simpan (Ctrl+S).</li>
+              <li>Klik tombol biru <strong>Deploy</strong> (Penerapan) di pojok kanan atas > pilih <strong>New deployment</strong> (Penerapan baru).</li>
+              <li>Klik ikon gerigi ⚙️ di samping <em>Select type</em> > pilih <strong>Web app</strong>.</li>
+              <li>Isi formulir:
+                <ul style="margin: 4px 0;">
+                  <li><strong>Description</strong>: <code>SisPensi API v2</code></li>
+                  <li><strong>Execute as</strong>: <code>Me (Akun Google Anda)</code></li>
+                  <li><strong>Who has access</strong>: <strong style="color: #ef4444;">Anyone (Siapa saja)</strong></li>
+                </ul>
+              </li>
+              <li>Klik <strong>Deploy</strong>, berikan izin akses akun Google jika diminta.</li>
+              <li>Salin URL Web App yang berakhiran <code>/exec</code> dan tempelkan pada kolom input di atas, lalu klik <strong>Simpan & Hubungkan</strong>!</li>
+            </ol>
+          </div>
+        </details>
+
+        <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 16px;">
+          <button type="button" class="btn btn-outline" data-close-modal="modal-sheets-config">
+            <span>❌</span> Tutup
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-save-sheets-config">
+            <span>💾</span> Simpan & Hubungkan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div class="toast-container" id="toast-container"></div>
 
   <!-- APP SCRIPT -->
-  <script src="app.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

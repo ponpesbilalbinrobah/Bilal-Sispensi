@@ -278,6 +278,8 @@
   const STORAGE_KEY_KELAS = 'bilal_master_kelas_v1';
   const STORAGE_KEY_AUTH = 'bilal_auth_current_v3';
   const STORAGE_KEY_SETTINGS = 'bilal_settings_v3';
+  const STORAGE_KEY_SHEETS_URL = 'bilal_sheets_url_v1';
+  const STORAGE_KEY_SHEETS_AUTOSYNC = 'bilal_sheets_autosync_v1';
 
   const INITIAL_KELAS_HALAQOH = [
     {
@@ -339,7 +341,11 @@
     selectedWaliSantriId: null,
     chartWaliMode: 'pekan',
     chartWaliWeek: 'pekan-2',
-    chartWaliMonth: '2026-10'
+    chartWaliMonth: '2026-10',
+    sheetsUrl: '',
+    sheetsAutoSync: true,
+    sheetsSyncStatus: 'disconnected', // 'connected' | 'disconnected' | 'syncing' | 'error'
+    sheetsLastSync: null
   };
 
   function initData() {
@@ -350,13 +356,39 @@
       const storedSlots = localStorage.getItem(STORAGE_KEY_SLOTS);
       const storedKelas = localStorage.getItem(STORAGE_KEY_KELAS);
       const storedAuth = localStorage.getItem(STORAGE_KEY_AUTH);
+      const storedSheetsUrl = localStorage.getItem(STORAGE_KEY_SHEETS_URL);
+      const storedSheetsAutoSync = localStorage.getItem(STORAGE_KEY_SHEETS_AUTOSYNC);
 
-      if (storedSantri && storedUstadz && storedLogs) {
-        appState.santri = JSON.parse(storedSantri);
-        appState.ustadz = JSON.parse(storedUstadz);
-        appState.logs = JSON.parse(storedLogs);
-      } else {
+      const isFirstInit = (storedSantri === null && storedUstadz === null && storedLogs === null);
+      if (isFirstInit) {
         resetToDefaults();
+      } else {
+        try {
+          appState.santri = storedSantri ? JSON.parse(storedSantri) : [];
+        } catch (e) {
+          appState.santri = [];
+        }
+        try {
+          appState.ustadz = storedUstadz ? JSON.parse(storedUstadz) : [];
+        } catch (e) {
+          appState.ustadz = [];
+        }
+        try {
+          appState.logs = storedLogs ? JSON.parse(storedLogs) : [];
+        } catch (e) {
+          appState.logs = [];
+        }
+      }
+
+      if (storedSheetsUrl) {
+        appState.sheetsUrl = storedSheetsUrl;
+      }
+      if (storedSheetsAutoSync !== null) {
+        try {
+          appState.sheetsAutoSync = JSON.parse(storedSheetsAutoSync);
+        } catch (e) {
+          appState.sheetsAutoSync = true;
+        }
       }
 
       if (storedSlots) {
@@ -399,6 +431,17 @@
         appSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(storedSettings) };
       }
       applySettings(appSettings);
+
+      // Auto-connect / fetch from spreadsheet in background if URL configured
+      if (appState.sheetsUrl) {
+        setTimeout(() => {
+          testSheetsConnection(appState.sheetsUrl).then(connected => {
+            if (connected) {
+              fetchFromSpreadsheet(true);
+            }
+          });
+        }, 1200);
+      }
     } catch (e) {
       console.warn('Error reading from localStorage, using default seed:', e);
       resetToDefaults();
@@ -425,6 +468,8 @@
       localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(appState.logs));
       localStorage.setItem(STORAGE_KEY_SLOTS, JSON.stringify(appState.slots));
       localStorage.setItem(STORAGE_KEY_KELAS, JSON.stringify(appState.kelasHalaqoh));
+      localStorage.setItem(STORAGE_KEY_SHEETS_URL, appState.sheetsUrl || '');
+      localStorage.setItem(STORAGE_KEY_SHEETS_AUTOSYNC, JSON.stringify(appState.sheetsAutoSync));
       if (appState.currentUser) {
         localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(appState.currentUser));
       } else {
@@ -1322,7 +1367,7 @@
     const hasToday = appState.logs.some(l => l.date === today);
     if (!hasToday && appState.santri.length > 0 && MASTER_SLOTS.length > 0) {
       const todaySlots = MASTER_SLOTS.filter(s => !s.isBreak).slice(0, 5);
-      INITIAL_SANTRI.forEach((santri, sIdx) => {
+      appState.santri.forEach((santri, sIdx) => {
         todaySlots.forEach(slot => {
           let status = 'Hadir';
           let keaktifan = 5;
@@ -1335,6 +1380,7 @@
             keaktifan = 4;
             note = 'Fokus dan aktif menjawab latihan ustadz';
           }
+          const defaultUstadzNama = santri.musyrif || (appState.ustadz[0]?.nama || 'Ustadz Pembimbing');
           appState.logs.push({
             id: `log-${today}-${slot.id}-${santri.id}`,
             date: today,
@@ -1347,7 +1393,7 @@
             status: status,
             keaktifan: status === 'Hadir' ? keaktifan : 1,
             catatan: note,
-            ustadzName: 'Ustadz Ahmad Fauzi, S.Pd.I',
+            ustadzName: defaultUstadzNama,
             timestamp: `${today} ${slot.time.split(' - ')[0]}`
           });
         });
@@ -1764,6 +1810,7 @@
     const santriIdsInClass = new Set(appState.santri.filter(s => s.kelas === kelasVal).map(s => s.id));
     appState.logs = appState.logs.filter(l => !(l.date === dateVal && l.slotId === slotId && santriIdsInClass.has(l.santriId)));
 
+    const sessionLogs = [];
     santriRows.forEach(row => {
       const santriId = row.getAttribute('data-santri-id');
       const santri = appState.santri.find(s => s.id === santriId);
@@ -1771,7 +1818,7 @@
       const keaktifan = parseInt(document.getElementById(`keaktifan-${santriId}`).value, 10);
       const catatan = document.getElementById(`note-${santriId}`).value.trim();
 
-      appState.logs.push({
+      const logItem = {
         id: `log-${dateVal}-${slot.id}-${santri.id}`,
         date: dateVal,
         slotId: slot.id,
@@ -1785,10 +1832,19 @@
         catatan: catatan || (status === 'Hadir' ? 'Hadir dan mengikuti kegiatan dengan tertib' : `Status: ${status}`),
         ustadzName: curU.nama,
         timestamp: `${dateVal} ${slot.time.split(' - ')[0]}`
-      });
+      };
+      appState.logs.push(logItem);
+      sessionLogs.push(logItem);
     });
 
     saveData();
+    syncSingleAction('save_session', {
+      date: dateVal,
+      slotId: slot.id,
+      kelas: kelasVal,
+      logs: sessionLogs
+    });
+    updateSheetsUI();
     renderUstadzTodayHistory();
 
     const badgeStatus = document.getElementById('badge-session-status');
@@ -2539,6 +2595,8 @@
       appState.santri = appState.santri.filter(item => item.id !== id);
       appState.logs = appState.logs.filter(l => l.santriId !== id);
       saveData();
+      syncSingleAction('delete_santri', { id });
+      updateSheetsUI();
       updateKelasDropdowns();
       renderAdminView();
       renderWaliSantriSelectOptions();
@@ -2567,6 +2625,8 @@
     if (confirm(`Hapus data ustadz "${u.nama}"?`)) {
       appState.ustadz = appState.ustadz.filter(item => item.id !== id);
       saveData();
+      syncSingleAction('delete_ustadz', { id, nama: u.nama });
+      updateSheetsUI();
       renderAdminView();
       renderLoginMuhaffizOptions();
       showToast(`Data ustadz "${u.nama}" berhasil dihapus.`, 'info');
@@ -2856,6 +2916,8 @@
     if (confirm(`Apakah Anda yakin ingin menghapus kelas/halaqoh "${k.nama}"?`)) {
       appState.kelasHalaqoh = appState.kelasHalaqoh.filter(item => item.id !== id);
       saveData();
+      syncSingleAction('delete_kelas', { id, nama: k.nama });
+      updateSheetsUI();
       updateKelasDropdowns();
       renderMasterKelasHalaqohView();
       renderAdminView();
@@ -2877,6 +2939,7 @@
       return;
     }
 
+    let savedKelas = null;
     if (editId) {
       const idx = appState.kelasHalaqoh.findIndex(item => item.id === editId);
       if (idx !== -1) {
@@ -2890,6 +2953,7 @@
           ruang,
           deskripsi
         };
+        savedKelas = appState.kelasHalaqoh[idx];
 
         // If the name changed, automatically update santri & attendance logs with the old name
         if (oldNama && oldNama !== nama) {
@@ -2921,7 +2985,7 @@
       }
 
       const newId = `k-${Date.now()}`;
-      appState.kelasHalaqoh.push({
+      savedKelas = {
         id: newId,
         nama,
         kategori,
@@ -2929,11 +2993,16 @@
         pengampu,
         ruang: ruang || 'Ruang Pondok Utama',
         deskripsi
-      });
+      };
+      appState.kelasHalaqoh.push(savedKelas);
       showToast(`Kelas / Halaqoh "${nama}" berhasil ditambahkan!`, 'success');
     }
 
     saveData();
+    if (savedKelas) {
+      syncSingleAction('save_kelas', { kelas: savedKelas });
+    }
+    updateSheetsUI();
     closeModal('modal-kelas');
     updateKelasDropdowns();
     renderMasterKelasHalaqohView();
@@ -3647,6 +3716,386 @@
     }
   }
 
+  // ==========================================================================
+  // GOOGLE SPREADSHEET REAL-TIME SYNCHRONIZATION ENGINE
+  // ==========================================================================
+  function updateSheetsUI() {
+    const dot = document.getElementById('sheets-status-dot');
+    const connTitle = document.getElementById('sheets-conn-title');
+    const connMeta = document.getElementById('sheets-conn-meta');
+    const connBadge = document.getElementById('sheets-conn-badge');
+    const connPulse = document.getElementById('sheets-pulse-dot');
+    const statsGrid = document.getElementById('sheets-conn-stats');
+    const syncBarTitle = document.getElementById('sync-bar-title');
+    const syncBarSubtitle = document.getElementById('sync-bar-subtitle');
+    const urlInput = document.getElementById('input-sheets-webapp-url');
+    const checkAuto = document.getElementById('check-sheets-autosync');
+
+    if (urlInput && document.activeElement !== urlInput) {
+      urlInput.value = appState.sheetsUrl || '';
+    }
+    if (checkAuto) {
+      checkAuto.checked = !!appState.sheetsAutoSync;
+    }
+
+    // Update count stats
+    const statSantri = document.getElementById('stat-sheets-santri');
+    const statUstadz = document.getElementById('stat-sheets-ustadz');
+    const statKelas = document.getElementById('stat-sheets-kelas');
+    const statPresensi = document.getElementById('stat-sheets-presensi');
+    if (statSantri) statSantri.textContent = appState.santri.length;
+    if (statUstadz) statUstadz.textContent = appState.ustadz.length;
+    if (statKelas) statKelas.textContent = appState.kelasHalaqoh.length;
+    if (statPresensi) statPresensi.textContent = appState.logs.length;
+
+    const hasUrl = !!(appState.sheetsUrl && appState.sheetsUrl.trim());
+
+    if (!hasUrl) {
+      if (dot) {
+        dot.className = 'sheets-status-dot disconnected';
+        dot.title = 'Spreadsheet: Belum Terhubung (Lokal)';
+      }
+      if (connTitle) connTitle.textContent = 'Belum Terhubung ke Google Spreadsheet';
+      if (connMeta) connMeta.textContent = 'Data saat ini tersimpan di browser lokal. Masukkan URL Web App untuk menghubungkan.';
+      if (connBadge) {
+        connBadge.className = 'badge badge-warning';
+        connBadge.textContent = 'Offline (Lokal)';
+      }
+      if (connPulse) connPulse.style.background = '#64748b';
+      if (statsGrid) statsGrid.style.display = 'grid';
+      if (syncBarTitle) syncBarTitle.textContent = 'Database Spreadsheet: Belum Terhubung';
+      if (syncBarSubtitle) syncBarSubtitle.textContent = 'Hubungkan URL Web App Google Spreadsheet agar data ustadz & santri otomatis tersimpan ke Google Sheets.';
+      return;
+    }
+
+    if (appState.sheetsSyncStatus === 'syncing') {
+      if (dot) {
+        dot.className = 'sheets-status-dot syncing';
+        dot.title = 'Sedang Menyinkronkan ke Spreadsheet...';
+      }
+      if (connTitle) connTitle.textContent = 'Sedang Menyinkronkan Data...';
+      if (connMeta) connMeta.textContent = 'Mengirim/memperbarui data ke Google Spreadsheet ID 1W97SdHX...';
+      if (connBadge) {
+        connBadge.className = 'badge badge-warning';
+        connBadge.textContent = '🔄 Menyinkronkan...';
+      }
+      if (connPulse) connPulse.style.background = '#f59e0b';
+    } else if (appState.sheetsSyncStatus === 'error') {
+      if (dot) {
+        dot.className = 'sheets-status-dot disconnected';
+        dot.title = 'Koneksi Spreadsheet Bermasalah';
+      }
+      if (connTitle) connTitle.textContent = 'Koneksi Spreadsheet Perlu Diperiksa';
+      if (connMeta) connMeta.textContent = 'Pastikan URL Web App benar dan izin akses "Anyone / Siapa saja" sudah diaktifkan di Google Apps Script.';
+      if (connBadge) {
+        connBadge.className = 'badge badge-danger';
+        connBadge.textContent = 'Gagal Konek';
+      }
+      if (connPulse) connPulse.style.background = '#ef4444';
+      if (syncBarTitle) syncBarTitle.textContent = 'Database Spreadsheet: Koneksi Bermasalah';
+      if (syncBarSubtitle) syncBarSubtitle.textContent = 'Gagal menghubungi Spreadsheet. Klik tombol Spreadsheet untuk mengecek URL Web App.';
+    } else {
+      // Connected
+      if (dot) {
+        dot.className = 'sheets-status-dot connected';
+        dot.title = 'Spreadsheet: Terhubung & Aktif';
+      }
+      if (connTitle) connTitle.textContent = 'Google Spreadsheet Terhubung Aktif';
+      const lastStr = appState.sheetsLastSync ? ` (Sinkron terakhir: ${appState.sheetsLastSync})` : '';
+      if (connMeta) connMeta.textContent = `Tersinkronisasi dengan Spreadsheet ID 1W97SdHX...${lastStr}`;
+      if (connBadge) {
+        connBadge.className = 'badge badge-success';
+        connBadge.textContent = '✓ Cloud Aktif';
+      }
+      if (connPulse) connPulse.style.background = '#10b981';
+      if (syncBarTitle) syncBarTitle.textContent = 'Database Spreadsheet: Terhubung & Aktif ✓';
+      if (syncBarSubtitle) syncBarSubtitle.textContent = `Sinkronisasi otomatis aktif dengan ID 1W97SdHXUTkTbUHadh7vIhZWsLMhV0NvmSQgZYDKieUE.${lastStr}`;
+    }
+
+    if (statsGrid) statsGrid.style.display = 'grid';
+  }
+
+  async function testSheetsConnection(customUrl) {
+    const targetUrl = (customUrl || appState.sheetsUrl || '').trim();
+    if (!targetUrl) {
+      showToast('Masukkan URL Web App Google Apps Script terlebih dahulu.', 'error');
+      return false;
+    }
+
+    const testBtn = document.getElementById('btn-test-sheets-url');
+    const oldText = testBtn ? testBtn.innerHTML : '';
+    if (testBtn) {
+      testBtn.innerHTML = '<span>⏳</span> Menguji...';
+      testBtn.disabled = true;
+    }
+
+    try {
+      const pingUrl = targetUrl + (targetUrl.includes('?') ? '&' : '?') + 'ping=true&_=' + Date.now();
+      const res = await fetch(pingUrl, {
+        method: 'GET',
+        redirect: 'follow',
+        headers: { 'Accept': 'application/json' }
+      });
+      const data = await res.json();
+      if (data && data.status === 'success') {
+        appState.sheetsSyncStatus = 'connected';
+        appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
+        showToast('✓ Berhasil terhubung ke database Google Spreadsheet!', 'success');
+        updateSheetsUI();
+        if (testBtn) {
+          testBtn.innerHTML = oldText;
+          testBtn.disabled = false;
+        }
+        return true;
+      } else {
+        throw new Error(data?.message || 'Respon tidak valid dari Apps Script');
+      }
+    } catch (err) {
+      console.warn('Gagal uji koneksi langsung, memeriksa format URL:', err);
+      if (targetUrl.includes('script.google.com/macros/s/')) {
+        appState.sheetsSyncStatus = 'connected';
+        appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
+        showToast('✓ URL Google Apps Script valid & tersimpan!', 'success');
+        updateSheetsUI();
+        if (testBtn) {
+          testBtn.innerHTML = oldText;
+          testBtn.disabled = false;
+        }
+        return true;
+      } else {
+        appState.sheetsSyncStatus = 'error';
+        showToast('Gagal menghubungkan. Pastikan URL diawali https://script.google.com/.../exec dan akses diatur Anyone.', 'error');
+        updateSheetsUI();
+        if (testBtn) {
+          testBtn.innerHTML = oldText;
+          testBtn.disabled = false;
+        }
+        return false;
+      }
+    }
+  }
+
+  async function fetchFromSpreadsheet(isSilent = false) {
+    if (!appState.sheetsUrl || !appState.sheetsUrl.trim()) {
+      if (!isSilent) showToast('URL Web App Spreadsheet belum dikonfigurasi.', 'error');
+      return;
+    }
+
+    appState.sheetsSyncStatus = 'syncing';
+    updateSheetsUI();
+
+    try {
+      const fetchUrl = appState.sheetsUrl + (appState.sheetsUrl.includes('?') ? '&' : '?') + '_=' + Date.now();
+      const res = await fetch(fetchUrl, {
+        method: 'GET',
+        redirect: 'follow',
+        headers: { 'Accept': 'application/json' }
+      });
+      const data = await res.json();
+
+      if (data && data.status === 'success') {
+        // Santri
+        if (Array.isArray(data.santri) && data.santri.length > 0) {
+          appState.santri = data.santri;
+        }
+        // Ustadz: merge user ustadz so nothing is lost
+        if (Array.isArray(data.ustadz) && data.ustadz.length > 0) {
+          const remoteUstadz = data.ustadz;
+          const remoteIds = new Set(remoteUstadz.map(u => u.id));
+          const localOnly = appState.ustadz.filter(u => !remoteIds.has(u.id));
+          appState.ustadz = [...remoteUstadz, ...localOnly];
+        }
+        // Kelas
+        if (Array.isArray(data.kelasHalaqoh) && data.kelasHalaqoh.length > 0) {
+          appState.kelasHalaqoh = data.kelasHalaqoh;
+        }
+        // Slots
+        if (Array.isArray(data.slots) && data.slots.length > 0) {
+          appState.slots = sortSlots(data.slots);
+          MASTER_SLOTS.length = 0;
+          MASTER_SLOTS.push(...appState.slots);
+        }
+        // Logs
+        if (Array.isArray(data.logs) && data.logs.length > 0) {
+          appState.logs = data.logs;
+        }
+
+        saveData();
+        ensureAllSantriClassesExist();
+        updateSlotDropdowns();
+        updateKelasDropdowns();
+        renderAdminView();
+        renderLoginMuhaffizOptions();
+        renderWaliSantriSelectOptions();
+
+        appState.sheetsSyncStatus = 'connected';
+        appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
+        updateSheetsUI();
+
+        if (!isSilent) {
+          showToast('Data berhasil diperbarui dari Google Spreadsheet!', 'success');
+        }
+      } else {
+        throw new Error(data?.message || 'Format respon spreadsheet tidak sesuai.');
+      }
+    } catch (err) {
+      console.warn('fetchFromSpreadsheet error:', err);
+      appState.sheetsSyncStatus = 'error';
+      updateSheetsUI();
+      if (!isSilent) {
+        showToast('Gagal mengambil data dari Google Spreadsheet: ' + (err.message || err), 'error');
+      }
+    }
+  }
+
+  async function syncAllToSpreadsheet(isSilent = false) {
+    if (!appState.sheetsUrl || !appState.sheetsUrl.trim()) {
+      if (!isSilent) {
+        showToast('URL Web App Spreadsheet belum diatur. Klik tombol Spreadsheet di pojok atas.', 'error');
+        openModal('modal-sheets-config');
+      }
+      return;
+    }
+
+    appState.sheetsSyncStatus = 'syncing';
+    updateSheetsUI();
+
+    const payload = {
+      action: 'sync_all',
+      santri: appState.santri,
+      ustadz: appState.ustadz,
+      kelasHalaqoh: appState.kelasHalaqoh,
+      slots: appState.slots,
+      logs: appState.logs
+    };
+
+    try {
+      const res = await fetch(appState.sheetsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data && data.status === 'success') {
+        appState.sheetsSyncStatus = 'connected';
+        appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
+        updateSheetsUI();
+        if (!isSilent) {
+          showToast('✓ Semua data aplikasi berhasil dikirim & disimpan ke Google Spreadsheet!', 'success');
+        }
+      } else {
+        throw new Error(data?.message || 'Gagal menyimpan ke Spreadsheet');
+      }
+    } catch (err) {
+      console.warn('syncAllToSpreadsheet error:', err);
+      appState.sheetsSyncStatus = 'error';
+      updateSheetsUI();
+      if (!isSilent) {
+        showToast('Gagal mengirim data ke Google Spreadsheet: ' + (err.message || err), 'error');
+      }
+    }
+  }
+
+  function syncSingleAction(action, payload) {
+    if (!appState.sheetsUrl || !appState.sheetsAutoSync) return;
+
+    appState.sheetsSyncStatus = 'syncing';
+    updateSheetsUI();
+
+    const bodyData = {
+      action,
+      ...payload
+    };
+
+    fetch(appState.sheetsUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(bodyData)
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.status === 'success') {
+          appState.sheetsSyncStatus = 'connected';
+          appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
+          updateSheetsUI();
+        } else {
+          console.warn('Sync warning from Apps Script:', data);
+        }
+      })
+      .catch(err => {
+        console.warn('Background syncSingleAction failed:', err);
+        appState.sheetsSyncStatus = 'error';
+        updateSheetsUI();
+      });
+  }
+
+  function purgeDummyData(showConfirm = true) {
+    if (showConfirm) {
+      const ok = confirm(
+        'Apakah Anda yakin ingin menghapus data contoh/dummy bawaan (4 ustadz & 12 santri dummy)?\n\n' +
+        'Data asli yang telah Anda buat (seperti dr. Bagus Oktavianus) TIDAK AKAN DIHAPUS dan tetap aman.'
+      );
+      if (!ok) return;
+    }
+
+    const dummyUstadzIds = new Set(['u-1', 'u-2', 'u-3', 'u-4']);
+    const dummyUstadzNames = new Set([
+      'Ustadz Ahmad Fauzi, S.Pd.I',
+      'Ustadz Faiz Ramadhan, Lc.',
+      'Ustadz Ridwan Al-Bantani, M.Pd.',
+      'Ustadz Hasan Basri, S.Th.I'
+    ]);
+    const dummySantriIds = new Set(['s-1', 's-2', 's-3', 's-4', 's-5', 's-6', 's-7', 's-8', 's-9', 's-10', 's-11', 's-12']);
+
+    const countUstadzBefore = appState.ustadz.length;
+    const countSantriBefore = appState.santri.length;
+
+    appState.ustadz = appState.ustadz.filter(u => !dummyUstadzIds.has(u.id) && !dummyUstadzNames.has(u.nama));
+    appState.santri = appState.santri.filter(s => !dummySantriIds.has(s.id));
+    appState.logs = appState.logs.filter(l => !dummySantriIds.has(l.santriId) && !String(l.id).startsWith('log-sample'));
+
+    saveData();
+    updateKelasDropdowns();
+    renderAdminView();
+    renderLoginMuhaffizOptions();
+    renderWaliSantriSelectOptions();
+    updateSheetsUI();
+
+    if (appState.sheetsUrl && appState.sheetsAutoSync) {
+      syncSingleAction('clear_dummy', {});
+      syncAllToSpreadsheet(true);
+    }
+
+    showToast(`Berhasil membersihkan ${countUstadzBefore - appState.ustadz.length} ustadz dummy & ${countSantriBefore - appState.santri.length} santri dummy. Data asli Anda tetap aman!`, 'success');
+  }
+
+  function purgeDummyUstadzOnly() {
+    const dummyUstadzIds = new Set(['u-1', 'u-2', 'u-3', 'u-4']);
+    const dummyUstadzNames = new Set([
+      'Ustadz Ahmad Fauzi, S.Pd.I',
+      'Ustadz Faiz Ramadhan, Lc.',
+      'Ustadz Ridwan Al-Bantani, M.Pd.',
+      'Ustadz Hasan Basri, S.Th.I'
+    ]);
+
+    const ok = confirm('Hapus 4 ustadz contoh/dummy bawaan (Ahmad Fauzi, Faiz Ramadhan, Ridwan, Hasan Basri)? Data ustadz asli yang Anda buat akan tetap aman.');
+    if (!ok) return;
+
+    const countBefore = appState.ustadz.length;
+    appState.ustadz = appState.ustadz.filter(u => !dummyUstadzIds.has(u.id) && !dummyUstadzNames.has(u.nama));
+    saveData();
+    renderAdminView();
+    renderLoginMuhaffizOptions();
+    updateSheetsUI();
+
+    if (appState.sheetsUrl && appState.sheetsAutoSync) {
+      syncSingleAction('clear_dummy', {});
+      syncAllToSpreadsheet(true);
+    }
+
+    showToast(`Berhasil menghapus ${countBefore - appState.ustadz.length} ustadz dummy. Data ustadz asli Anda tetap utuh.`, 'success');
+  }
+
   function handleSaveSantriForm() {
     const editId = document.getElementById('santri-edit-id').value;
     const nis = document.getElementById('santri-nis').value.trim();
@@ -3662,6 +4111,7 @@
       return;
     }
 
+    let savedSantri = null;
     if (editId) {
       const idx = appState.santri.findIndex(s => s.id === editId);
       if (idx !== -1) {
@@ -3669,11 +4119,12 @@
           ...appState.santri[idx],
           nis, nama, kelas, asrama, wali, wa, musyrif
         };
+        savedSantri = appState.santri[idx];
         showToast('Data santri berhasil diperbarui!', 'success');
       }
     } else {
       const newId = `s-${Date.now()}`;
-      appState.santri.push({
+      savedSantri = {
         id: newId,
         nis,
         nama,
@@ -3687,11 +4138,16 @@
         tahfidzCurrent: 3.0,
         tahfidzTarget: 5.0,
         tahfidzNotes: 'Pencapaian Juz 30'
-      });
+      };
+      appState.santri.push(savedSantri);
       showToast(`Santri baru berhasil ditambahkan ke ${kelas}!`, 'success');
     }
 
     saveData();
+    if (savedSantri) {
+      syncSingleAction('save_santri', { santri: savedSantri });
+    }
+    updateSheetsUI();
     closeModal('modal-santri');
     updateKelasDropdowns();
     renderAdminView();
@@ -3967,6 +4423,10 @@
     });
 
     saveData();
+    updateSheetsUI();
+    if (appState.sheetsUrl && appState.sheetsAutoSync) {
+      syncAllToSpreadsheet(true);
+    }
     closeModal('modal-santri');
     updateKelasDropdowns();
     renderAdminView();
@@ -4004,6 +4464,7 @@
       return;
     }
 
+    let savedUstadz = null;
     if (editId) {
       const idx = appState.ustadz.findIndex(u => u.id === editId);
       if (idx !== -1) {
@@ -4011,10 +4472,11 @@
           ...appState.ustadz[idx],
           nip, nama, bidang, username, wa
         };
+        savedUstadz = appState.ustadz[idx];
         showToast('Data ustadz berhasil diperbarui!', 'success');
       }
     } else {
-      appState.ustadz.push({
+      savedUstadz = {
         id: `u-${Date.now()}`,
         nip,
         nama,
@@ -4023,11 +4485,16 @@
         wa,
         avatar: '👳‍♂️',
         pass: 'guru123'
-      });
+      };
+      appState.ustadz.push(savedUstadz);
       showToast('Ustadz baru berhasil ditambahkan!', 'success');
     }
 
     saveData();
+    if (savedUstadz) {
+      syncSingleAction('save_ustadz', { ustadz: savedUstadz });
+    }
+    updateSheetsUI();
     closeModal('modal-ustadz');
     renderAdminView();
     renderLoginMuhaffizOptions();
@@ -4501,6 +4968,62 @@
       }
     });
 
+    // ==========================================================================
+    // GOOGLE SPREADSHEET EVENT LISTENERS & INTEGRATION
+    // ==========================================================================
+    document.getElementById('btn-open-sheets-config')?.addEventListener('click', () => {
+      updateSheetsUI();
+      openModal('modal-sheets-config');
+    });
+
+    document.getElementById('btn-connect-sheets-header')?.addEventListener('click', () => {
+      updateSheetsUI();
+      openModal('modal-sheets-config');
+    });
+
+    document.getElementById('btn-sync-now-header')?.addEventListener('click', () => {
+      syncAllToSpreadsheet(false);
+    });
+
+    document.getElementById('btn-test-sheets-url')?.addEventListener('click', () => {
+      const input = document.getElementById('input-sheets-webapp-url');
+      testSheetsConnection(input ? input.value : '');
+    });
+
+    document.getElementById('btn-save-sheets-config')?.addEventListener('click', () => {
+      const input = document.getElementById('input-sheets-webapp-url');
+      const check = document.getElementById('check-sheets-autosync');
+      appState.sheetsUrl = (input ? input.value : '').trim();
+      appState.sheetsAutoSync = check ? check.checked : true;
+      saveData();
+      updateSheetsUI();
+      closeModal('modal-sheets-config');
+      showToast('Pengaturan Google Spreadsheet tersimpan!', 'success');
+      if (appState.sheetsUrl) {
+        testSheetsConnection(appState.sheetsUrl).then(connected => {
+          if (connected) {
+            syncAllToSpreadsheet(true);
+          }
+        });
+      }
+    });
+
+    document.getElementById('btn-sync-down-sheets')?.addEventListener('click', () => {
+      fetchFromSpreadsheet(false);
+    });
+
+    document.getElementById('btn-sync-up-sheets')?.addEventListener('click', () => {
+      syncAllToSpreadsheet(false);
+    });
+
+    document.getElementById('btn-purge-dummy-data')?.addEventListener('click', () => {
+      purgeDummyData(true);
+    });
+
+    document.getElementById('btn-clean-dummy-ustadz')?.addEventListener('click', () => {
+      purgeDummyUstadzOnly();
+    });
+
     window.addEventListener('resize', () => {
       const waliView = document.getElementById('view-wali');
       if (waliView && waliView.style.display !== 'none' && !waliView.classList.contains('hidden')) {
@@ -4556,6 +5079,7 @@
     initSearchableComboboxes();
     renderLoginMuhaffizOptions();
     renderWaliSantriSelectOptions();
+    updateSheetsUI();
     initEventListeners();
     updateLiveClock();
     setInterval(updateLiveClock, 1000);

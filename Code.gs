@@ -1,25 +1,24 @@
 /**
  * ============================================================================
  * SISPENSI SANTRI - PONDOK PESANTREN BILAL BIN ROBAH
- * BACKEND DATABASE GOOGLE APPS SCRIPT (Code.gs)
+ * BACKEND DATABASE GOOGLE APPS SCRIPT (Code.gs) - VERSI 2.0 (ANTI-DUMMY & REALTIME SYNC)
  * ============================================================================
  * Spreadsheet ID: 1W97SdHXUTkTbUHadh7vIhZWsLMhV0NvmSQgZYDKieUE
+ * Spreadsheet URL: https://docs.google.com/spreadsheets/d/1W97SdHXUTkTbUHadh7vIhZWsLMhV0NvmSQgZYDKieUE/edit
  * 
- * PETUNJUK PENGGUNAAN:
+ * PETUNJUK PENERAPAN / DEPLOY:
  * 1. Buka spreadsheet Anda: https://docs.google.com/spreadsheets/d/1W97SdHXUTkTbUHadh7vIhZWsLMhV0NvmSQgZYDKieUE/edit
  * 2. Klik menu "Ekstensi" (Extensions) > "Apps Script"
- * 3. Hapus semua kode yang ada di Code.gs, lalu salin dan tempel SELURUH isi file ini.
- * 4. Pada toolbar atas Apps Script, pilih fungsi "setupDatabase" lalu klik tombol "Run" (Jalankan).
- *    (Berikan izin/otorisasi jika diminta Google).
- * 5. Tunggu hingga selesai -> Semua sheet (Santri, Ustadz, AbsensiLogs, Kelas, Slots)
- *    akan OTOMATIS terbuat rapi lengkap dengan header, warna, format, dan data awal!
- * 6. Klik tombol "Deploy" (Penerapan) di pojok kanan atas > "New deployment" (Penerapan baru)
- *    - Type: Web app
- *    - Description: API SisPensi Database
- *    - Execute as: Me (email Anda)
- *    - Who has access: Anyone (Siapa saja)
- * 7. Salin URL Web App yang dihasilkan (format: https://script.google.com/macros/s/.../exec)
- *    dan masukkan ke aplikasi SISPENSI SANTRI.
+ * 3. Hapus seluruh isi file Code.gs lama, lalu tempel SELURUH kode di bawah ini.
+ * 4. Simpan (Ctrl+S / Command+S).
+ * 5. Klik menu "Deploy" (Penerapan) di kanan atas > "New deployment" (Penerapan baru):
+ *    - Type (Jenis): Web app
+ *    - Description: SisPensi API v2
+ *    - Execute as: Me (email Google Anda)
+ *    - Who has access: Anyone (Siapa saja)  <-- PENTING agar web app bisa konek!
+ * 6. Klik "Deploy", beri izin akses Google jika diminta.
+ * 7. Salin URL Web App yang berakhiran "/exec", lalu masukkan ke aplikasi web SISPENSI SANTRI
+ *    pada tombol "Spreadsheet" di pojok kanan atas.
  * ============================================================================
  */
 
@@ -39,21 +38,80 @@ function getSpreadsheet() {
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('🕌 SisPensi Database')
-    .addItem('🛠️ Inisialisasi / Buat Ulang Sheet Database', 'setupDatabase')
     .addItem('📊 Cek Status & Jumlah Data', 'checkDatabaseStatus')
+    .addItem('🧹 Bersihkan Data Dummy (Pertahankan Data Asli)', 'cleanDummyDataMenu')
+    .addSeparator()
+    .addItem('🛠️ Setup Sheet Bersih (Tanpa Data Dummy)', 'initCleanDatabase')
+    .addItem('📦 Setup Sheet Lengkap (Dengan Contoh Data Awal)', 'setupDatabaseWithSample')
     .addSeparator()
     .addItem('ℹ️ Petunjuk Deploy Web App', 'showHelpDialog')
     .addToUi();
 }
 
 // ============================================================================
-// 2. FUNGSI OTOMATIS: SETUP SHEET & DATA AWAL (1-CLICK SETUP)
+// 2. SETUP SHEET BERSIH (TIDAK AKAN MENIMPA DATA ASLI)
 // ============================================================================
+
+/**
+ * Membuat sheet bersih jika belum ada, TANPA menghapus data ustadz/santri yang sudah ada.
+ */
+function initCleanDatabase() {
+  const ss = getSpreadsheet();
+  
+  createSheetIfNotExist(ss, 'Santri', [
+    'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+  ], '#0284c7');
+
+  createSheetIfNotExist(ss, 'Ustadz', [
+    'id', 'nip', 'nama', 'bidang', 'username', 'wa', 'avatar', 'pass'
+  ], '#059669');
+
+  createSheetIfNotExist(ss, 'Kelas', [
+    'id', 'nama', 'kategori', 'tingkat', 'pengampu', 'ruang', 'deskripsi'
+  ], '#7c3aed');
+
+  createSheetIfNotExist(ss, 'Slots', [
+    'id', 'time', 'startHour', 'startMin', 'endHour', 'endMin', 'name', 'desc', 'isBreak', 'icon'
+  ], '#d97706');
+
+  createSheetIfNotExist(ss, 'AbsensiLogs', [
+    'id', 'date', 'slotId', 'slotName', 'slotTime', 'santriId', 'santriName', 'santriKelas', 'status', 'keaktifan', 'catatan', 'ustadzName', 'timestamp'
+  ], '#0f172a');
+
+  // Hapus sheet default "Sheet1" jika ada dan kosong
+  const defaultSheet = ss.getSheetByName('Sheet1') || ss.getSheetByName('Sheet 1');
+  if (defaultSheet && ss.getSheets().length > 1 && defaultSheet.getLastRow() <= 1) {
+    try { ss.deleteSheet(defaultSheet); } catch (e) {}
+  }
+
+  SpreadsheetApp.flush();
+  SpreadsheetApp.getUi().alert(
+    'Setup Selesai',
+    'Sheet Santri, Ustadz, Kelas, Slots, dan AbsensiLogs siap digunakan! Data asli Anda aman.',
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+}
+
+/**
+ * Setup sheet dengan data contoh hanya jika diminta
+ */
+function setupDatabaseWithSample() {
+  const ss = getSpreadsheet();
+  const resp = SpreadsheetApp.getUi().alert(
+    'Konfirmasi Contoh Data',
+    'Apakah Anda yakin ingin mengisi data contoh/dummy awal ke dalam sheet? (Gunakan hanya untuk testing baru)',
+    SpreadsheetApp.getUi().ButtonSet.YES_NO
+  );
+  if (resp !== SpreadsheetApp.getUi().Button.YES) return;
+
+  setupDatabase();
+}
+
 function setupDatabase() {
   const ss = getSpreadsheet();
   
   // 1. Setup Sheet Santri
-  setupSheet(ss, 'Santri', [
+  setupSheetForce(ss, 'Santri', [
     'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
   ], [
     ['s-1', '202607001', 'Muhammad Rayhan Al-Fatih', 'L', 'Kelas 7A', 'Kamar Bilal Bin Robah #01', 'Bpk. Hendra Gunawan', '081234567890', 'wali.rayhan', 'Ustadz Ahmad Fauzi', 4.5, 5.0, 'Juz 30, 29, 28, 27 (Mumtaz)'],
@@ -71,7 +129,7 @@ function setupDatabase() {
   ], '#0284c7');
 
   // 2. Setup Sheet Ustadz
-  setupSheet(ss, 'Ustadz', [
+  setupSheetForce(ss, 'Ustadz', [
     'id', 'nip', 'nama', 'bidang', 'username', 'wa', 'avatar', 'pass'
   ], [
     ['u-1', '198804122015011002', 'Ustadz Ahmad Fauzi, S.Pd.I', 'Halaqoh Al-Quran & Ulumul Quran', 'ustadz.ahmad', '081211223344', '👨‍🏫', 'guru123'],
@@ -81,7 +139,7 @@ function setupDatabase() {
   ], '#059669');
 
   // 3. Setup Sheet Kelas
-  setupSheet(ss, 'Kelas', [
+  setupSheetForce(ss, 'Kelas', [
     'id', 'nama', 'kategori', 'tingkat', 'pengampu', 'ruang', 'deskripsi'
   ], [
     ['k-7a', 'Kelas 7A', 'Kelas Reguler (Putra)', 'Kelas 7', 'Ustadz Ahmad Fauzi, S.Pd.I', 'Gedung Umar bin Khattab R. 101', 'Kelas 7 Reguler Ikhwan - Fokus Tahsin, Tajwid & Dasar Bahasa Arab'],
@@ -92,7 +150,7 @@ function setupDatabase() {
   ], '#7c3aed');
 
   // 4. Setup Sheet Slots (11 Master Slot Waktu Kegiatan)
-  setupSheet(ss, 'Slots', [
+  setupSheetForce(ss, 'Slots', [
     'id', 'time', 'startHour', 'startMin', 'endHour', 'endMin', 'name', 'desc', 'isBreak', 'icon'
   ], [
     ['slot-1', '05.20 - 06.00', 5, 20, 6, 0, 'Halaqoh Al Quran', 'Setoran hafalan baru (Ziyadah) & tahsin ba\'da Shubuh', false, '📖'],
@@ -108,48 +166,29 @@ function setupDatabase() {
     ['slot-11', '19.30 - 20.10', 19, 30, 20, 10, 'Halaqoh Al Quran', 'Pendalaman makhraj, mutasyabihat & persiapan setoran esok', false, '✨']
   ], '#d97706');
 
-  // 5. Setup Sheet AbsensiLogs (Data Log Presensi)
-  setupSheet(ss, 'AbsensiLogs', [
+  // 5. Setup Sheet AbsensiLogs
+  setupSheetForce(ss, 'AbsensiLogs', [
     'id', 'date', 'slotId', 'slotName', 'slotTime', 'santriId', 'santriName', 'santriKelas', 'status', 'keaktifan', 'catatan', 'ustadzName', 'timestamp'
-  ], [
-    ['log-demo-1', '2026-10-25', 'slot-1', 'Halaqoh Al Quran', '05.20 - 06.00', 's-1', 'Muhammad Rayhan Al-Fatih', 'Kelas 7A', 'Hadir', 5, 'Setoran hafalan lancar tanpa kesalahan', 'Ustadz Ahmad Fauzi, S.Pd.I', '2026-10-25 05:20'],
-    ['log-demo-2', '2026-10-25', 'slot-1', 'Halaqoh Al Quran', '05.20 - 06.00', 's-3', 'Ahmad Ziyad Al-Farabi', 'Kelas 7A', 'Hadir', 4, 'Setoran lancar, fokus menyimak ustadz', 'Ustadz Ahmad Fauzi, S.Pd.I', '2026-10-25 05:20'],
-    ['log-demo-3', '2026-10-25', 'slot-1', 'Halaqoh Al Quran', '05.20 - 06.00', 's-4', 'Muhammad Bilal Al-Habsyi', 'Kelas 7A', 'Hadir', 4, 'Murojaah tertib dan mutqin', 'Ustadz Ahmad Fauzi, S.Pd.I', '2026-10-25 05:20'],
-    ['log-demo-4', '2026-10-25', 'slot-1', 'Halaqoh Al Quran', '05.20 - 06.00', 's-6', 'Ibrahim Rasyid', 'Kelas 7A', 'Sakit', 1, 'Izin di UKS istirahat karena demam ringan', 'Ustadz Ahmad Fauzi, S.Pd.I', '2026-10-25 05:20']
-  ], '#0f172a');
+  ], [], '#0f172a');
 
-  // Hapus sheet default "Sheet1" jika ada dan kosong
-  const defaultSheet = ss.getSheetByName('Sheet1') || ss.getSheetByName('Sheet 1');
-  if (defaultSheet && ss.getSheets().length > 1) {
-    try {
-      ss.deleteSheet(defaultSheet);
-    } catch (e) {}
-  }
-
-  Logger.log('========================================================');
-  Logger.log('✅ DATABASE SISPENSI SANTRI BERHASIL DIBUAT LENGKAP!');
-  Logger.log('• Sheet Santri: Siap');
-  Logger.log('• Sheet Ustadz: Siap');
-  Logger.log('• Sheet Kelas: Siap');
-  Logger.log('• Sheet Slots: Siap');
-  Logger.log('• Sheet AbsensiLogs: Siap');
-  Logger.log('Langkah berikutnya: Klik Deploy > New deployment > Web app');
-  Logger.log('========================================================');
   SpreadsheetApp.flush();
 }
 
 /**
- * Helper: Membuat & Memformat Sheet Rapi (Super Cepat & Batch)
+ * Membuat sheet jika belum ada, mempertahankan isi jika sudah ada.
  */
-function setupSheet(ss, sheetName, headers, initialRows, headerColor) {
+function createSheetIfNotExist(ss, sheetName, headers, headerColor) {
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
-  } else {
-    sheet.clear();
+    formatHeaders(sheet, headers, headerColor);
+  } else if (sheet.getLastRow() === 0) {
+    formatHeaders(sheet, headers, headerColor);
   }
+  return sheet;
+}
 
-  // 1. Tulis Header
+function formatHeaders(sheet, headers, headerColor) {
   const headerRange = sheet.getRange(1, 1, 1, headers.length);
   headerRange.setValues([headers]);
   headerRange.setBackground(headerColor || '#0369a1');
@@ -161,16 +200,6 @@ function setupSheet(ss, sheetName, headers, initialRows, headerColor) {
   sheet.setRowHeight(1, 32);
   sheet.setFrozenRows(1);
 
-  // 2. Tulis Data Awal jika ada (1 kali pemanggilan batch cepat)
-  if (initialRows && initialRows.length > 0) {
-    const dataRange = sheet.getRange(2, 1, initialRows.length, headers.length);
-    dataRange.setValues(initialRows);
-    dataRange.setFontSize(9.5);
-    dataRange.setVerticalAlignment('middle');
-    sheet.setRowHeights(2, initialRows.length, 26);
-  }
-
-  // 3. Auto resize kolom agar teks terbaca jelas
   for (let c = 1; c <= headers.length; c++) {
     sheet.autoResizeColumn(c);
     const w = sheet.getColumnWidth(c);
@@ -179,13 +208,103 @@ function setupSheet(ss, sheetName, headers, initialRows, headerColor) {
   }
 }
 
+function setupSheetForce(ss, sheetName, headers, initialRows, headerColor) {
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+  } else {
+    sheet.clear();
+  }
+  formatHeaders(sheet, headers, headerColor);
+
+  if (initialRows && initialRows.length > 0) {
+    const dataRange = sheet.getRange(2, 1, initialRows.length, headers.length);
+    dataRange.setValues(initialRows);
+    dataRange.setFontSize(9.5);
+    dataRange.setVerticalAlignment('middle');
+    sheet.setRowHeights(2, initialRows.length, 26);
+  }
+}
+
 // ============================================================================
-// 3. API ENDPOINT: GET (BACA DATA OLEH APLIKASI WEB)
+// 3. PEMBERSIH DATA DUMMY (HANYA MENGHAPUS DATA BAWAAN CONTOH)
+// ============================================================================
+function cleanDummyDataMenu() {
+  const count = purgeSampleDummyRecords();
+  SpreadsheetApp.getUi().alert(
+    'Pembersihan Selesai',
+    `Berhasil menghapus ${count} baris data contoh bawaan.\nSeluruh data asli yang Anda buat (seperti ustadz/santri baru) tetap aman tersimpan!`,
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+}
+
+function purgeSampleDummyRecords() {
+  const ss = getSpreadsheet();
+  let deletedTotal = 0;
+
+  // 1. Bersihkan Ustadz dummy (u-1 s.d u-4)
+  const ustadzSheet = ss.getSheetByName('Ustadz');
+  if (ustadzSheet) {
+    const uList = getSheetRecords(ustadzSheet);
+    const dummyNames = ['Ustadz Ahmad Fauzi', 'Ustadz Faiz Ramadhan', 'Ustadz Ridwan Al-Bantani', 'Ustadz Hasan Basri'];
+    const kept = uList.filter(u => {
+      const isDummyId = ['u-1', 'u-2', 'u-3', 'u-4'].includes(String(u.id));
+      const isDummyName = dummyNames.some(d => (u.nama || '').includes(d));
+      return !(isDummyId && isDummyName);
+    });
+    deletedTotal += (uList.length - kept.length);
+    overwriteSheetRecords(ustadzSheet, kept, [
+      'id', 'nip', 'nama', 'bidang', 'username', 'wa', 'avatar', 'pass'
+    ]);
+  }
+
+  // 2. Bersihkan Santri dummy (s-1 s.d s-12)
+  const santriSheet = ss.getSheetByName('Santri');
+  if (santriSheet) {
+    const sList = getSheetRecords(santriSheet);
+    const kept = sList.filter(s => {
+      const num = parseInt(String(s.id).replace('s-', ''), 10);
+      return isNaN(num) || num > 12;
+    });
+    deletedTotal += (sList.length - kept.length);
+    overwriteSheetRecords(santriSheet, kept, [
+      'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+    ]);
+  }
+
+  // 3. Bersihkan AbsensiLogs demo
+  const logsSheet = ss.getSheetByName('AbsensiLogs');
+  if (logsSheet) {
+    const lList = getSheetRecords(logsSheet);
+    const kept = lList.filter(l => !String(l.id).startsWith('log-demo-'));
+    deletedTotal += (lList.length - kept.length);
+    overwriteSheetRecords(logsSheet, kept, [
+      'id', 'date', 'slotId', 'slotName', 'slotTime', 'santriId', 'santriName', 'santriKelas', 'status', 'keaktifan', 'catatan', 'ustadzName', 'timestamp'
+    ]);
+  }
+
+  return deletedTotal;
+}
+
+// ============================================================================
+// 4. API ENDPOINT: GET (BACA DATA OLEH APLIKASI WEB)
 // ============================================================================
 function doGet(e) {
   try {
     const ss = getSpreadsheet();
+    const action = (e && e.parameter && e.parameter.action) || 'read_all';
+    const callback = e && e.parameter && e.parameter.callback;
 
+    // Ping check
+    if (action === 'ping') {
+      return createJsonResponse({
+        status: 'success',
+        message: 'Koneksi ke Google Apps Script berhasil!',
+        timestamp: new Date().toISOString()
+      }, callback);
+    }
+
+    // Read full database
     const data = {
       status: 'success',
       timestamp: new Date().toISOString(),
@@ -196,17 +315,17 @@ function doGet(e) {
       logs: getSheetRecords(ss.getSheetByName('AbsensiLogs'))
     };
 
-    return createJsonResponse(data);
+    return createJsonResponse(data, callback);
   } catch (err) {
     return createJsonResponse({
       status: 'error',
       message: err.toString()
-    });
+    }, e && e.parameter && e.parameter.callback);
   }
 }
 
 // ============================================================================
-// 4. API ENDPOINT: POST (SIMPAN & PERBARUI DATA DARI WEB)
+// 5. API ENDPOINT: POST (SIMPAN & PERBARUI DATA DARI WEB)
 // ============================================================================
 function doPost(e) {
   try {
@@ -215,21 +334,24 @@ function doPost(e) {
     
     if (e && e.postData && e.postData.contents) {
       body = JSON.parse(e.postData.contents);
+    } else if (e && e.parameter) {
+      body = e.parameter;
     }
 
-    const action = body.action || 'save_session';
+    const action = body.action || 'sync_all';
 
-    // AKSI 1: Simpan Sesi Absensi Ustadz (Menimpa sesi tanggal + slot + kelas yang sama, mempertahankan lainnya)
+    // 1. Simpan Sesi Presensi Ustadz
     if (action === 'save_session') {
       const dateVal = body.date;
       const slotId = body.slotId;
       const kelasVal = body.kelas;
-      const newSessionLogs = body.logs || []; // Log baru untuk sesi ini
+      const newSessionLogs = body.logs || [];
 
-      const logsSheet = ss.getSheetByName('AbsensiLogs');
+      const logsSheet = createSheetIfNotExist(ss, 'AbsensiLogs', [
+        'id', 'date', 'slotId', 'slotName', 'slotTime', 'santriId', 'santriName', 'santriKelas', 'status', 'keaktifan', 'catatan', 'ustadzName', 'timestamp'
+      ], '#0f172a');
       const allLogs = getSheetRecords(logsSheet);
 
-      // Filter log lama: buang log yang tanggal, slot, dan kelasnya sama
       const keptLogs = allLogs.filter(l => !(l.date === dateVal && l.slotId === slotId && l.santriKelas === kelasVal));
       const mergedLogs = keptLogs.concat(newSessionLogs);
 
@@ -239,34 +361,143 @@ function doPost(e) {
 
       return createJsonResponse({
         status: 'success',
-        message: `Presensi tanggal ${dateVal} slot ${slotId} kelas ${kelasVal} berhasil disimpan (${newSessionLogs.length} santri).`
+        message: `Presensi tanggal ${dateVal} slot ${slotId} kelas ${kelasVal} berhasil disimpan ke Spreadsheet.`
       });
     }
 
-    // AKSI 2: Simpan Seluruh State Sekaligus (Sinkronisasi Penuh)
+    // 2. Simpan / Edit Ustadz
+    if (action === 'save_ustadz') {
+      const sheet = createSheetIfNotExist(ss, 'Ustadz', [
+        'id', 'nip', 'nama', 'bidang', 'username', 'wa', 'avatar', 'pass'
+      ], '#059669');
+      const list = getSheetRecords(sheet);
+      const target = body.ustadz;
+      const idx = list.findIndex(u => u.id === target.id || (target.nip && target.nip !== '-' && u.nip === target.nip));
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...target };
+      } else {
+        list.push(target);
+      }
+      overwriteSheetRecords(sheet, list, [
+        'id', 'nip', 'nama', 'bidang', 'username', 'wa', 'avatar', 'pass'
+      ]);
+      return createJsonResponse({ status: 'success', message: `Data ustadz "${target.nama}" berhasil disimpan ke spreadsheet.` });
+    }
+
+    // 3. Hapus Ustadz
+    if (action === 'delete_ustadz') {
+      const sheet = createSheetIfNotExist(ss, 'Ustadz', [
+        'id', 'nip', 'nama', 'bidang', 'username', 'wa', 'avatar', 'pass'
+      ], '#059669');
+      const list = getSheetRecords(sheet).filter(u => u.id !== body.id && u.nama !== body.nama);
+      overwriteSheetRecords(sheet, list, [
+        'id', 'nip', 'nama', 'bidang', 'username', 'wa', 'avatar', 'pass'
+      ]);
+      return createJsonResponse({ status: 'success', message: 'Data ustadz berhasil dihapus dari spreadsheet.' });
+    }
+
+    // 4. Simpan / Edit Santri
+    if (action === 'save_santri') {
+      const sheet = createSheetIfNotExist(ss, 'Santri', [
+        'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+      ], '#0284c7');
+      const list = getSheetRecords(sheet);
+      const target = body.santri;
+      const idx = list.findIndex(s => s.id === target.id || (target.nis && s.nis === target.nis));
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...target };
+      } else {
+        list.push(target);
+      }
+      overwriteSheetRecords(sheet, list, [
+        'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+      ]);
+      return createJsonResponse({ status: 'success', message: `Data santri "${target.nama}" berhasil disimpan ke spreadsheet.` });
+    }
+
+    // 5. Hapus Santri
+    if (action === 'delete_santri') {
+      const sheet = createSheetIfNotExist(ss, 'Santri', [
+        'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+      ], '#0284c7');
+      const list = getSheetRecords(sheet).filter(s => s.id !== body.id);
+      overwriteSheetRecords(sheet, list, [
+        'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+      ]);
+      return createJsonResponse({ status: 'success', message: 'Data santri berhasil dihapus dari spreadsheet.' });
+    }
+
+    // 6. Simpan / Edit Kelas
+    if (action === 'save_kelas') {
+      const sheet = createSheetIfNotExist(ss, 'Kelas', [
+        'id', 'nama', 'kategori', 'tingkat', 'pengampu', 'ruang', 'deskripsi'
+      ], '#7c3aed');
+      const list = getSheetRecords(sheet);
+      const target = body.kelas;
+      const idx = list.findIndex(k => k.id === target.id || k.nama === target.nama);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...target };
+      } else {
+        list.push(target);
+      }
+      overwriteSheetRecords(sheet, list, [
+        'id', 'nama', 'kategori', 'tingkat', 'pengampu', 'ruang', 'deskripsi'
+      ]);
+      return createJsonResponse({ status: 'success', message: `Data kelas/halaqoh "${target.nama}" berhasil disimpan ke spreadsheet.` });
+    }
+
+    // 7. Hapus Kelas
+    if (action === 'delete_kelas') {
+      const sheet = createSheetIfNotExist(ss, 'Kelas', [
+        'id', 'nama', 'kategori', 'tingkat', 'pengampu', 'ruang', 'deskripsi'
+      ], '#7c3aed');
+      const list = getSheetRecords(sheet).filter(k => k.id !== body.id && k.nama !== body.nama);
+      overwriteSheetRecords(sheet, list, [
+        'id', 'nama', 'kategori', 'tingkat', 'pengampu', 'ruang', 'deskripsi'
+      ]);
+      return createJsonResponse({ status: 'success', message: 'Data kelas/halaqoh berhasil dihapus dari spreadsheet.' });
+    }
+
+    // 8. Bersihkan Data Dummy
+    if (action === 'clear_dummy') {
+      const count = purgeSampleDummyRecords();
+      return createJsonResponse({ status: 'success', message: `Berhasil membersihkan ${count} baris data dummy di Google Spreadsheet.` });
+    }
+
+    // 9. Sinkronisasi Penuh (Sync All State)
     if (action === 'sync_all') {
-      if (body.santri) {
-        overwriteSheetRecords(ss.getSheetByName('Santri'), body.santri, [
+      if (Array.isArray(body.santri)) {
+        overwriteSheetRecords(createSheetIfNotExist(ss, 'Santri', [
+          'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+        ], '#0284c7'), body.santri, [
           'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
         ]);
       }
-      if (body.ustadz) {
-        overwriteSheetRecords(ss.getSheetByName('Ustadz'), body.ustadz, [
+      if (Array.isArray(body.ustadz)) {
+        overwriteSheetRecords(createSheetIfNotExist(ss, 'Ustadz', [
+          'id', 'nip', 'nama', 'bidang', 'username', 'wa', 'avatar', 'pass'
+        ], '#059669'), body.ustadz, [
           'id', 'nip', 'nama', 'bidang', 'username', 'wa', 'avatar', 'pass'
         ]);
       }
-      if (body.kelasHalaqoh) {
-        overwriteSheetRecords(ss.getSheetByName('Kelas'), body.kelasHalaqoh, [
+      if (Array.isArray(body.kelasHalaqoh)) {
+        overwriteSheetRecords(createSheetIfNotExist(ss, 'Kelas', [
+          'id', 'nama', 'kategori', 'tingkat', 'pengampu', 'ruang', 'deskripsi'
+        ], '#7c3aed'), body.kelasHalaqoh, [
           'id', 'nama', 'kategori', 'tingkat', 'pengampu', 'ruang', 'deskripsi'
         ]);
       }
-      if (body.slots) {
-        overwriteSheetRecords(ss.getSheetByName('Slots'), body.slots, [
+      if (Array.isArray(body.slots)) {
+        overwriteSheetRecords(createSheetIfNotExist(ss, 'Slots', [
+          'id', 'time', 'startHour', 'startMin', 'endHour', 'endMin', 'name', 'desc', 'isBreak', 'icon'
+        ], '#d97706'), body.slots, [
           'id', 'time', 'startHour', 'startMin', 'endHour', 'endMin', 'name', 'desc', 'isBreak', 'icon'
         ]);
       }
-      if (body.logs) {
-        overwriteSheetRecords(ss.getSheetByName('AbsensiLogs'), body.logs, [
+      if (Array.isArray(body.logs)) {
+        overwriteSheetRecords(createSheetIfNotExist(ss, 'AbsensiLogs', [
+          'id', 'date', 'slotId', 'slotName', 'slotTime', 'santriId', 'santriName', 'santriKelas', 'status', 'keaktifan', 'catatan', 'ustadzName', 'timestamp'
+        ], '#0f172a'), body.logs, [
           'id', 'date', 'slotId', 'slotName', 'slotTime', 'santriId', 'santriName', 'santriKelas', 'status', 'keaktifan', 'catatan', 'ustadzName', 'timestamp'
         ]);
       }
@@ -277,33 +508,6 @@ function doPost(e) {
       });
     }
 
-    // AKSI 3: Simpan / Edit Santri Tunggal
-    if (action === 'save_santri') {
-      const santriSheet = ss.getSheetByName('Santri');
-      const santriList = getSheetRecords(santriSheet);
-      const targetSantri = body.santri;
-      const idx = santriList.findIndex(s => s.id === targetSantri.id);
-      if (idx >= 0) {
-        santriList[idx] = targetSantri;
-      } else {
-        santriList.push(targetSantri);
-      }
-      overwriteSheetRecords(santriSheet, santriList, [
-        'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
-      ]);
-      return createJsonResponse({ status: 'success', message: 'Data santri berhasil disimpan.' });
-    }
-
-    // AKSI 4: Hapus Santri
-    if (action === 'delete_santri') {
-      const santriSheet = ss.getSheetByName('Santri');
-      const santriList = getSheetRecords(santriSheet).filter(s => s.id !== body.id);
-      overwriteSheetRecords(santriSheet, santriList, [
-        'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
-      ]);
-      return createJsonResponse({ status: 'success', message: 'Data santri berhasil dihapus.' });
-    }
-
     return createJsonResponse({ status: 'error', message: 'Aksi tidak dikenali: ' + action });
   } catch (err) {
     return createJsonResponse({ status: 'error', message: err.toString() });
@@ -311,7 +515,7 @@ function doPost(e) {
 }
 
 // ============================================================================
-// 5. HELPER DATABASE RECORD & JSON RESPONSE
+// 6. HELPER DATABASE RECORD & JSON RESPONSE
 // ============================================================================
 function getSheetRecords(sheet) {
   if (!sheet) return [];
@@ -323,13 +527,11 @@ function getSheetRecords(sheet) {
 
   for (let r = 1; r < data.length; r++) {
     const row = data[r];
-    // Abaikan baris kosong
     if (row.every(cell => cell === '' || cell === null)) continue;
     
     const obj = {};
     headers.forEach((h, colIdx) => {
       let val = row[colIdx];
-      // Format boolean string
       if (val === 'TRUE' || val === true) val = true;
       else if (val === 'FALSE' || val === false) val = false;
       obj[h] = val;
@@ -342,9 +544,9 @@ function getSheetRecords(sheet) {
 function overwriteSheetRecords(sheet, records, headers) {
   if (!sheet) return;
   const lastRow = sheet.getLastRow();
-  const lastCol = sheet.getLastColumn() || headers.length;
+  const lastCol = Math.max(sheet.getLastColumn(), headers.length);
 
-  // Bersihkan data lama di bawah header
+  // Bersihkan baris di bawah header
   if (lastRow > 1) {
     sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
   }
@@ -361,13 +563,18 @@ function overwriteSheetRecords(sheet, records, headers) {
   sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
 }
 
-function createJsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
+function createJsonResponse(data, callback) {
+  const jsonString = JSON.stringify(data);
+  if (callback) {
+    return ContentService.createTextOutput(callback + '(' + jsonString + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(jsonString)
     .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ============================================================================
-// 6. FUNGSI CEK STATUS & BANTUAN DI GOOGLE SPREADSHEET
+// 7. FUNGSI CEK STATUS & BANTUAN DI GOOGLE SPREADSHEET
 // ============================================================================
 function checkDatabaseStatus() {
   const ss = getSpreadsheet();
@@ -383,7 +590,7 @@ function checkDatabaseStatus() {
     '• Kelas & Halaqoh: ' + kelasCount + ' rombel\n' +
     '• Slot Waktu Kegiatan: ' + slotsCount + ' sesi\n' +
     '• Riwayat Log Presensi: ' + logsCount + ' rekaman log\n\n' +
-    'Database siap digunakan oleh aplikasi web!';
+    'Database siap terhubung dengan aplikasi web!';
 
   SpreadsheetApp.getUi().alert('Status Database SisPensi', msg, SpreadsheetApp.getUi().ButtonSet.OK);
 }
@@ -394,20 +601,19 @@ function showHelpDialog() {
       '<h3 style="color: #0284c7; margin-top: 0;">Cara Deploy Web App API</h3>' +
       '<ol style="padding-left: 20px;">' +
         '<li>Klik tombol biru <strong>Deploy</strong> (Penerapan) di kanan atas editor Apps Script.</li>' +
-        '<li>Pilih <strong>New deployment</strong> (Penerapan baru).</li>' +
-        '<li>Klik ikon gerigi ⚙️ di samping <em>Select type</em> &gt; pilih <strong>Web app</strong>.</li>' +
-        '<li>Isi:' +
+        '<li>Pilih <strong>Manage deployments</strong> (Kelola penerapan) jika sudah pernah deploy, lalu klik ikon pensil Edit > Version: New Version > Deploy.<br>Atau <strong>New deployment</strong> (Penerapan baru).</li>' +
+        '<li>Pilih jenis <strong>Web app</strong>.</li>' +
+        '<li>Pengaturan:' +
           '<ul>' +
-            '<li><strong>Description</strong>: <code>API SisPensi Santri</code></li>' +
             '<li><strong>Execute as</strong>: <code>Me (Akun Saya)</code></li>' +
             '<li><strong>Who has access</strong>: <strong style="color: #dc2626;">Anyone (Siapa saja)</strong></li>' +
           '</ul>' +
         '</li>' +
-        '<li>Klik <strong>Deploy</strong>, lalu berikan izin akun Google jika diminta.</li>' +
-        '<li>Salin <strong>Web App URL</strong> yang dihasilkan ke aplikasi web.</li>' +
+        '<li>Klik <strong>Deploy</strong>, lalu berikan izin akun Google.</li>' +
+        '<li>Salin <strong>Web App URL</strong> yang dihasilkan dan masukkan ke tombol <strong>Spreadsheet</strong> di aplikasi web.</li>' +
       '</ol>' +
     '</div>'
-  ).setWidth(460).setHeight(320);
+  ).setWidth(480).setHeight(360);
 
   SpreadsheetApp.getUi().showModalDialog(html, 'Petunjuk Penerapan Web App');
 }
