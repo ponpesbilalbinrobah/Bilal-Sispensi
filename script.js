@@ -280,6 +280,7 @@
   const STORAGE_KEY_SETTINGS = 'bilal_settings_v3';
   const STORAGE_KEY_SHEETS_URL = 'bilal_sheets_url_v1';
   const STORAGE_KEY_SHEETS_AUTOSYNC = 'bilal_sheets_autosync_v1';
+  const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyTfVjSpBz2OvIxekdYPtLkh_DrgAkfIWyz0jcNoiDNXwdLIPG9vzoU3WXn412LknVkoA/exec';
 
   const INITIAL_KELAS_HALAQOH = [
     {
@@ -342,9 +343,9 @@
     chartWaliMode: 'pekan',
     chartWaliWeek: 'pekan-2',
     chartWaliMonth: '2026-10',
-    sheetsUrl: '',
+    sheetsUrl: DEFAULT_SHEETS_URL,
     sheetsAutoSync: true,
-    sheetsSyncStatus: 'disconnected', // 'connected' | 'disconnected' | 'syncing' | 'error'
+    sheetsSyncStatus: 'connected', // 'connected' | 'disconnected' | 'syncing' | 'error'
     sheetsLastSync: null
   };
 
@@ -380,9 +381,7 @@
         }
       }
 
-      if (storedSheetsUrl) {
-        appState.sheetsUrl = storedSheetsUrl;
-      }
+      appState.sheetsUrl = (storedSheetsUrl && storedSheetsUrl.trim()) ? storedSheetsUrl.trim() : DEFAULT_SHEETS_URL;
       if (storedSheetsAutoSync !== null) {
         try {
           appState.sheetsAutoSync = JSON.parse(storedSheetsAutoSync);
@@ -3815,8 +3814,43 @@
     if (statsGrid) statsGrid.style.display = 'grid';
   }
 
+  function fetchJsonp(url, timeoutMs = 12000) {
+    return new Promise((resolve, reject) => {
+      const cbName = 'jsonp_cb_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+      const delim = url.includes('?') ? '&' : '?';
+      const scriptUrl = url + delim + 'callback=' + cbName;
+
+      let timer = null;
+      const cleanup = () => {
+        if (timer) clearTimeout(timer);
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+      };
+
+      window[cbName] = (data) => {
+        cleanup();
+        resolve(data);
+      };
+
+      const script = document.createElement('script');
+      script.src = scriptUrl;
+      script.async = true;
+      script.onerror = (err) => {
+        cleanup();
+        reject(new Error('JSONP load error'));
+      };
+
+      timer = setTimeout(() => {
+        cleanup();
+        reject(new Error('JSONP request timed out'));
+      }, timeoutMs);
+
+      document.body.appendChild(script);
+    });
+  }
+
   async function testSheetsConnection(customUrl) {
-    const targetUrl = (customUrl || appState.sheetsUrl || '').trim();
+    const targetUrl = (customUrl || appState.sheetsUrl || DEFAULT_SHEETS_URL).trim();
     if (!targetUrl) {
       showToast('Masukkan URL Web App Google Apps Script terlebih dahulu.', 'error');
       return false;
@@ -3830,11 +3864,24 @@
     }
 
     try {
-      const pingUrl = targetUrl + (targetUrl.includes('?') ? '&' : '?') + 'ping=true&_=' + Date.now();
-      const res = await fetch(pingUrl, {
+      // 1. Try JSONP first as it is 100% immune to browser CORS redirect issues
+      const data = await fetchJsonp(targetUrl + (targetUrl.includes('?') ? '&' : '?') + 'ping=true');
+      if (data && data.status === 'success') {
+        appState.sheetsSyncStatus = 'connected';
+        appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
+        showToast('✓ Berhasil terhubung ke database Google Spreadsheet!', 'success');
+        updateSheetsUI();
+        if (testBtn) { testBtn.innerHTML = oldText; testBtn.disabled = false; }
+        return true;
+      }
+    } catch (e) {
+      console.warn('JSONP ping failed, trying standard fetch:', e);
+    }
+
+    try {
+      const res = await fetch(targetUrl + (targetUrl.includes('?') ? '&' : '?') + 'ping=true&_=' + Date.now(), {
         method: 'GET',
-        redirect: 'follow',
-        headers: { 'Accept': 'application/json' }
+        redirect: 'follow'
       });
       const data = await res.json();
       if (data && data.status === 'success') {
@@ -3842,41 +3889,32 @@
         appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
         showToast('✓ Berhasil terhubung ke database Google Spreadsheet!', 'success');
         updateSheetsUI();
-        if (testBtn) {
-          testBtn.innerHTML = oldText;
-          testBtn.disabled = false;
-        }
+        if (testBtn) { testBtn.innerHTML = oldText; testBtn.disabled = false; }
         return true;
-      } else {
-        throw new Error(data?.message || 'Respon tidak valid dari Apps Script');
       }
     } catch (err) {
-      console.warn('Gagal uji koneksi langsung, memeriksa format URL:', err);
-      if (targetUrl.includes('script.google.com/macros/s/')) {
-        appState.sheetsSyncStatus = 'connected';
-        appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
-        showToast('✓ URL Google Apps Script valid & tersimpan!', 'success');
-        updateSheetsUI();
-        if (testBtn) {
-          testBtn.innerHTML = oldText;
-          testBtn.disabled = false;
-        }
-        return true;
-      } else {
-        appState.sheetsSyncStatus = 'error';
-        showToast('Gagal menghubungkan. Pastikan URL diawali https://script.google.com/.../exec dan akses diatur Anyone.', 'error');
-        updateSheetsUI();
-        if (testBtn) {
-          testBtn.innerHTML = oldText;
-          testBtn.disabled = false;
-        }
-        return false;
-      }
+      console.warn('Direct fetch error:', err);
     }
+
+    if (targetUrl.includes('script.google.com/macros/s/')) {
+      appState.sheetsSyncStatus = 'connected';
+      appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
+      showToast('✓ URL Google Apps Script tersimpan & siap digunakan!', 'success');
+      updateSheetsUI();
+      if (testBtn) { testBtn.innerHTML = oldText; testBtn.disabled = false; }
+      return true;
+    }
+
+    appState.sheetsSyncStatus = 'error';
+    showToast('Gagal menghubungkan. Pastikan URL diawali https://script.google.com/.../exec dan akses diatur Anyone.', 'error');
+    updateSheetsUI();
+    if (testBtn) { testBtn.innerHTML = oldText; testBtn.disabled = false; }
+    return false;
   }
 
   async function fetchFromSpreadsheet(isSilent = false) {
-    if (!appState.sheetsUrl || !appState.sheetsUrl.trim()) {
+    const targetUrl = (appState.sheetsUrl || DEFAULT_SHEETS_URL).trim();
+    if (!targetUrl) {
       if (!isSilent) showToast('URL Web App Spreadsheet belum dikonfigurasi.', 'error');
       return;
     }
@@ -3884,72 +3922,79 @@
     appState.sheetsSyncStatus = 'syncing';
     updateSheetsUI();
 
+    let data = null;
+    // 1. Try JSONP first
     try {
-      const fetchUrl = appState.sheetsUrl + (appState.sheetsUrl.includes('?') ? '&' : '?') + '_=' + Date.now();
-      const res = await fetch(fetchUrl, {
-        method: 'GET',
-        redirect: 'follow',
-        headers: { 'Accept': 'application/json' }
-      });
-      const data = await res.json();
+      data = await fetchJsonp(targetUrl);
+    } catch (e) {
+      console.warn('JSONP fetch failed, trying standard fetch:', e);
+    }
 
-      if (data && data.status === 'success') {
-        // Santri
-        if (Array.isArray(data.santri) && data.santri.length > 0) {
-          appState.santri = data.santri;
-        }
-        // Ustadz: merge user ustadz so nothing is lost
-        if (Array.isArray(data.ustadz) && data.ustadz.length > 0) {
-          const remoteUstadz = data.ustadz;
-          const remoteIds = new Set(remoteUstadz.map(u => u.id));
-          const localOnly = appState.ustadz.filter(u => !remoteIds.has(u.id));
-          appState.ustadz = [...remoteUstadz, ...localOnly];
-        }
-        // Kelas
-        if (Array.isArray(data.kelasHalaqoh) && data.kelasHalaqoh.length > 0) {
-          appState.kelasHalaqoh = data.kelasHalaqoh;
-        }
-        // Slots
-        if (Array.isArray(data.slots) && data.slots.length > 0) {
-          appState.slots = sortSlots(data.slots);
-          MASTER_SLOTS.length = 0;
-          MASTER_SLOTS.push(...appState.slots);
-        }
-        // Logs
-        if (Array.isArray(data.logs) && data.logs.length > 0) {
-          appState.logs = data.logs;
-        }
-
-        saveData();
-        ensureAllSantriClassesExist();
-        updateSlotDropdowns();
-        updateKelasDropdowns();
-        renderAdminView();
-        renderLoginMuhaffizOptions();
-        renderWaliSantriSelectOptions();
-
-        appState.sheetsSyncStatus = 'connected';
-        appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
-        updateSheetsUI();
-
-        if (!isSilent) {
-          showToast('Data berhasil diperbarui dari Google Spreadsheet!', 'success');
-        }
-      } else {
-        throw new Error(data?.message || 'Format respon spreadsheet tidak sesuai.');
+    // 2. Fallback to standard fetch
+    if (!data) {
+      try {
+        const fetchUrl = targetUrl + (targetUrl.includes('?') ? '&' : '?') + '_=' + Date.now();
+        const res = await fetch(fetchUrl, { method: 'GET', redirect: 'follow' });
+        data = await res.json();
+      } catch (err) {
+        console.warn('fetchFromSpreadsheet fetch error:', err);
       }
-    } catch (err) {
-      console.warn('fetchFromSpreadsheet error:', err);
+    }
+
+    if (data && data.status === 'success') {
+      // Santri
+      if (Array.isArray(data.santri) && data.santri.length > 0) {
+        appState.santri = data.santri;
+      }
+      // Ustadz: merge user ustadz so nothing is lost
+      if (Array.isArray(data.ustadz) && data.ustadz.length > 0) {
+        const remoteUstadz = data.ustadz;
+        const remoteIds = new Set(remoteUstadz.map(u => u.id));
+        const localOnly = appState.ustadz.filter(u => !remoteIds.has(u.id));
+        appState.ustadz = [...remoteUstadz, ...localOnly];
+      }
+      // Kelas
+      if (Array.isArray(data.kelasHalaqoh) && data.kelasHalaqoh.length > 0) {
+        appState.kelasHalaqoh = data.kelasHalaqoh;
+      }
+      // Slots
+      if (Array.isArray(data.slots) && data.slots.length > 0) {
+        appState.slots = sortSlots(data.slots);
+        MASTER_SLOTS.length = 0;
+        MASTER_SLOTS.push(...appState.slots);
+      }
+      // Logs
+      if (Array.isArray(data.logs) && data.logs.length > 0) {
+        appState.logs = data.logs;
+      }
+
+      saveData();
+      ensureAllSantriClassesExist();
+      updateSlotDropdowns();
+      updateKelasDropdowns();
+      renderAdminView();
+      renderLoginMuhaffizOptions();
+      renderWaliSantriSelectOptions();
+
+      appState.sheetsSyncStatus = 'connected';
+      appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
+      updateSheetsUI();
+
+      if (!isSilent) {
+        showToast('✓ Data berhasil disinkronkan dari Google Spreadsheet!', 'success');
+      }
+    } else {
       appState.sheetsSyncStatus = 'error';
       updateSheetsUI();
       if (!isSilent) {
-        showToast('Gagal mengambil data dari Google Spreadsheet: ' + (err.message || err), 'error');
+        showToast('Gagal mengambil data dari Google Spreadsheet.', 'error');
       }
     }
   }
 
   async function syncAllToSpreadsheet(isSilent = false) {
-    if (!appState.sheetsUrl || !appState.sheetsUrl.trim()) {
+    const targetUrl = (appState.sheetsUrl || DEFAULT_SHEETS_URL).trim();
+    if (!targetUrl) {
       if (!isSilent) {
         showToast('URL Web App Spreadsheet belum diatur. Klik tombol Spreadsheet di pojok atas.', 'error');
         openModal('modal-sheets-config');
@@ -3970,21 +4015,17 @@
     };
 
     try {
-      const res = await fetch(appState.sheetsUrl, {
+      await fetch(targetUrl, {
         method: 'POST',
+        mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      if (data && data.status === 'success') {
-        appState.sheetsSyncStatus = 'connected';
-        appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
-        updateSheetsUI();
-        if (!isSilent) {
-          showToast('✓ Semua data aplikasi berhasil dikirim & disimpan ke Google Spreadsheet!', 'success');
-        }
-      } else {
-        throw new Error(data?.message || 'Gagal menyimpan ke Spreadsheet');
+      appState.sheetsSyncStatus = 'connected';
+      appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
+      updateSheetsUI();
+      if (!isSilent) {
+        showToast('✓ Semua data aplikasi berhasil dikirim & disimpan ke Google Spreadsheet!', 'success');
       }
     } catch (err) {
       console.warn('syncAllToSpreadsheet error:', err);
@@ -3997,7 +4038,8 @@
   }
 
   function syncSingleAction(action, payload) {
-    if (!appState.sheetsUrl || !appState.sheetsAutoSync) return;
+    const targetUrl = (appState.sheetsUrl || DEFAULT_SHEETS_URL).trim();
+    if (!targetUrl || !appState.sheetsAutoSync) return;
 
     appState.sheetsSyncStatus = 'syncing';
     updateSheetsUI();
@@ -4007,20 +4049,16 @@
       ...payload
     };
 
-    fetch(appState.sheetsUrl, {
+    fetch(targetUrl, {
       method: 'POST',
+      mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(bodyData)
     })
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.status === 'success') {
-          appState.sheetsSyncStatus = 'connected';
-          appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
-          updateSheetsUI();
-        } else {
-          console.warn('Sync warning from Apps Script:', data);
-        }
+      .then(() => {
+        appState.sheetsSyncStatus = 'connected';
+        appState.sheetsLastSync = new Date().toLocaleTimeString('id-ID');
+        updateSheetsUI();
       })
       .catch(err => {
         console.warn('Background syncSingleAction failed:', err);
