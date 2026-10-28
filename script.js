@@ -3212,6 +3212,8 @@
     });
 
     saveData();
+    syncSingleAction('sync_all', { santri: appState.santri });
+    updateSheetsUI();
     closeModal('modal-mutasi');
     updateKelasDropdowns();
     renderMasterKelasHalaqohView();
@@ -3298,6 +3300,8 @@
     });
 
     saveData();
+    syncSingleAction('save_santri', { santri: s });
+    updateSheetsUI();
     closeModal('modal-quick-pindah');
     updateKelasDropdowns();
     renderSantriTable();

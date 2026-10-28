@@ -403,7 +403,7 @@ function doPost(e) {
       ], '#0284c7');
       const list = getSheetRecords(sheet);
       const target = body.santri;
-      const idx = list.findIndex(s => s.id === target.id || (target.nis && s.nis === target.nis));
+      const idx = list.findIndex(s => String(s.id) === String(target.id) || (target.nis && String(s.nis) === String(target.nis)));
       if (idx >= 0) {
         list[idx] = { ...list[idx], ...target };
       } else {
@@ -420,7 +420,7 @@ function doPost(e) {
       const sheet = createSheetIfNotExist(ss, 'Santri', [
         'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
       ], '#0284c7');
-      const list = getSheetRecords(sheet).filter(s => s.id !== body.id);
+      const list = getSheetRecords(sheet).filter(s => String(s.id) !== String(body.id) && (body.nis ? String(s.nis) !== String(body.nis) : true));
       overwriteSheetRecords(sheet, list, [
         'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
       ]);
