@@ -532,8 +532,16 @@ function getSheetRecords(sheet) {
     const obj = {};
     headers.forEach((h, colIdx) => {
       let val = row[colIdx];
-      if (val === 'TRUE' || val === true) val = true;
-      else if (val === 'FALSE' || val === false) val = false;
+      if (val === 'TRUE' || val === true) {
+        val = true;
+      } else if (val === 'FALSE' || val === false) {
+        val = false;
+      } else if (val !== null && val !== undefined) {
+        // Coerce text/code fields to string so they don't return as numbers (e.g. nip, nis, wa)
+        if (['id', 'nis', 'nip', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'bidang', 'username', 'avatar', 'pass', 'kategori', 'tingkat', 'pengampu', 'ruang', 'deskripsi', 'slotId', 'slotName', 'slotTime', 'santriId', 'santriName', 'santriKelas', 'status', 'catatan', 'ustadzName', 'date'].includes(h)) {
+          val = String(val);
+        }
+      }
       obj[h] = val;
     });
     records.push(obj);

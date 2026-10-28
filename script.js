@@ -649,10 +649,12 @@
     if (!select) return;
 
     select.innerHTML = '<option value="">-- Pilih Nama Ustadz / Pengajar --</option>';
-    appState.ustadz.forEach(u => {
+    (appState.ustadz || []).forEach(u => {
       const opt = document.createElement('option');
       opt.value = u.username;
-      opt.textContent = `${u.nama} (${u.bidang.split('/')[0].trim()})`;
+      const bidangStr = String(u.bidang || '').trim();
+      const bidangDisplay = bidangStr ? ` (${bidangStr.split('/')[0].trim()})` : '';
+      opt.textContent = `${u.nama || 'Ustadz'}${bidangDisplay}`;
       select.appendChild(opt);
     });
   }
@@ -757,12 +759,15 @@
         avatarText: 'AD'
       };
     } else if (role === 'ustadz') {
-      const u = appState.ustadz.find(item => item.username === username) || appState.ustadz[0];
+      const u = (appState.ustadz.find(item => item.username === username) || appState.ustadz[0]) || { username: 'ustadz', nama: 'Ustadz' };
+      const uNama = String(u.nama || 'Ustadz').trim();
+      const parts = uNama.split(' ').filter(Boolean);
+      const avText = parts[1] ? parts[1].substring(0, 2).toUpperCase() : parts[0] ? parts[0].substring(0, 2).toUpperCase() : 'US';
       userObj = {
         role: 'ustadz',
-        username: u.username,
-        name: u.nama,
-        avatarText: u.nama.split(' ')[1] ? u.nama.split(' ')[1].substring(0, 2).toUpperCase() : 'US',
+        username: u.username || 'ustadz',
+        name: uNama,
+        avatarText: avText,
         details: u
       };
     } else if (role === 'wali') {
@@ -1007,9 +1012,11 @@
     const q = filterSearch ? filterSearch.value.toLowerCase().trim() : '';
     const k = filterKelas ? filterKelas.value : '';
 
-    const filtered = appState.santri.filter(s => {
-      const matchSearch = !q || s.nama.toLowerCase().includes(q) || s.nis.toLowerCase().includes(q);
-      const matchKelas = !k || s.kelas === k;
+    const filtered = (appState.santri || []).filter(s => {
+      const sNama = String(s.nama || '').toLowerCase();
+      const sNis = String(s.nis || '').toLowerCase();
+      const matchSearch = !q || sNama.includes(q) || sNis.includes(q);
+      const matchKelas = !k || String(s.kelas || '') === k;
       return matchSearch && matchKelas;
     });
 
@@ -1026,32 +1033,36 @@
         pct = Math.round((h / sLogs.length) * 100);
       }
 
-      const initials = s.nama.split(' ').map(n => n[0]).slice(0, 2).join('');
+      const sNama = String(s.nama || 'Santri').trim();
+      const initials = sNama.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'ST';
       const isFemale = s.gender === 'P';
+      const rawWa = String(s.wa !== undefined && s.wa !== null ? s.wa : '').trim();
+      const waClean = rawWa.replace(/[^0-9]/g, '').replace(/^0/, '62');
 
       return `
         <tr>
-          <td><strong>${s.nis}</strong></td>
+          <td><strong>${String(s.nis || '-')}</strong></td>
           <td>
             <div class="santri-avatar-inline">
               <div class="avatar-circle ${isFemale ? 'avatar-female' : ''}">${initials}</div>
               <div class="santri-meta-inline">
-                <span class="santri-name-strong">${s.nama}</span>
+                <span class="santri-name-strong">${sNama}</span>
                 <span class="santri-nis-span">${s.gender === 'L' ? 'Santri Ikhwan' : 'Santri Akhwat'}</span>
               </div>
             </div>
           </td>
           <td>
             <span class="badge badge-info" style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: transform 0.15s ease;" onclick="window.quickPindahSantri('${s.id}')" title="Klik untuk memindahkan santri ini ke kelas / halaqoh lain">
-              ${s.kelas} <span style="font-size: 0.72rem; opacity: 0.85;">🔄</span>
+              ${s.kelas || '-'} <span style="font-size: 0.72rem; opacity: 0.85;">🔄</span>
             </span>
           </td>
-          <td>${s.asrama}</td>
-          <td>${s.wali}</td>
+          <td>${s.asrama || '-'}</td>
+          <td>${s.wali || '-'}</td>
           <td>
-            <a href="https://wa.me/${s.wa.replace(/^0/, '62')}" target="_blank" style="color: #047857; text-decoration: none; font-weight: 600;">
-              📱 ${s.wa}
-            </a>
+            ${rawWa ? `
+            <a href="https://wa.me/${waClean}" target="_blank" style="color: #047857; text-decoration: none; font-weight: 600;">
+              📱 ${rawWa}
+            </a>` : '<span style="color: var(--text-muted);">-</span>'}
           </td>
           <td>
             <span class="badge ${pct >= 90 ? 'badge-success' : pct >= 75 ? 'badge-warning' : 'badge-danger'}">
@@ -1074,27 +1085,37 @@
     const tbody = document.getElementById('tbody-ustadz');
     if (!tbody) return;
 
+    if (!Array.isArray(appState.ustadz) || appState.ustadz.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: var(--text-muted);">Belum ada data ustadz. Klik "Tambah Ustadz Baru" untuk menambahkan pengajar.</td></tr>`;
+      return;
+    }
+
     const today = getTodayDateStr();
 
     tbody.innerHTML = appState.ustadz.map(u => {
-      const uLogs = appState.logs.filter(l => l.date === today && l.ustadzName && l.ustadzName.includes(u.nama.split(',')[0]));
+      const uNama = String(u.nama || '').trim();
+      const uNamaFirst = uNama.split(',')[0].trim();
+      const uLogs = appState.logs.filter(l => l.date === today && l.ustadzName && String(l.ustadzName).includes(uNamaFirst));
       const sesiCount = new Set(uLogs.map(l => l.slotId)).size;
+      const rawWa = String(u.wa !== undefined && u.wa !== null ? u.wa : '').trim();
+      const waClean = rawWa.replace(/[^0-9]/g, '').replace(/^0/, '62');
 
       return `
         <tr>
-          <td><strong>${u.nip}</strong></td>
+          <td><strong>${String(u.nip || '-')}</strong></td>
           <td>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 1.2rem;">${u.avatar || '👳‍♂️'}</span>
-              <strong>${u.nama}</strong>
+              <strong>${uNama || 'Ustadz'}</strong>
             </div>
           </td>
-          <td><span class="badge badge-primary">${u.bidang}</span></td>
-          <td><code>${u.username}</code></td>
+          <td><span class="badge badge-primary">${String(u.bidang || '-')}</span></td>
+          <td><code>${String(u.username || '-')}</code></td>
           <td>
-            <a href="https://wa.me/${u.wa.replace(/^0/, '62')}" target="_blank" style="color: #047857; text-decoration: none; font-weight: 600;">
-              📱 ${u.wa}
-            </a>
+            ${rawWa ? `
+            <a href="https://wa.me/${waClean}" target="_blank" style="color: #047857; text-decoration: none; font-weight: 600;">
+              📱 ${rawWa}
+            </a>` : '<span style="color: var(--text-muted);">-</span>'}
           </td>
           <td>
             <span class="badge ${sesiCount > 0 ? 'badge-success' : 'badge-warning'}">
@@ -1568,7 +1589,7 @@
           <span class="notes-text" title="${(r.catatan || '-').replace(/"/g, '&quot;')}">${r.catatan || '-'}</span>
         </td>
         <td class="cell-ustadz">
-          <span class="ustadz-name-compact" title="${r.ustadzName}">${r.ustadzName.replace('Ustadz ', 'Ust. ')}</span>
+          <span class="ustadz-name-compact" title="${r.ustadzName || '-'}">${r.ustadzName ? String(r.ustadzName).replace('Ustadz ', 'Ust. ') : '-'}</span>
         </td>
       </tr>
     `).join('');
@@ -1691,8 +1712,9 @@
     if (!container) return;
 
     const today = getTodayDateStr();
-    const curU = appState.currentUser.details || appState.ustadz[0];
-    const todayLogs = appState.logs.filter(l => l.date === today && l.ustadzName && l.ustadzName.includes(curU.nama.split(',')[0]));
+    const curU = appState.currentUser.details || (appState.ustadz && appState.ustadz[0]) || { nama: 'Ustadz' };
+    const curUNama = String(curU.nama || 'Ustadz').split(',')[0].trim();
+    const todayLogs = appState.logs.filter(l => l.date === today && l.ustadzName && String(l.ustadzName).includes(curUNama));
 
     const slotsMap = {};
     todayLogs.forEach(log => {
@@ -3942,16 +3964,34 @@
     }
 
     if (data && data.status === 'success') {
-      // Santri
-      if (Array.isArray(data.santri) && data.santri.length > 0) {
-        appState.santri = data.santri;
+      // Santri: Sanitasi data agar bebas dari angka yang merusak string method
+      if (Array.isArray(data.santri)) {
+        appState.santri = data.santri.map(s => ({
+          ...s,
+          id: String(s.id || `s-${Date.now()}`),
+          nis: String(s.nis || ''),
+          nama: String(s.nama || ''),
+          gender: s.gender || 'L',
+          kelas: String(s.kelas || ''),
+          asrama: String(s.asrama || ''),
+          wali: String(s.wali || ''),
+          wa: String(s.wa !== undefined && s.wa !== null ? s.wa : ''),
+          musyrif: String(s.musyrif || '')
+        }));
       }
-      // Ustadz: merge user ustadz so nothing is lost
-      if (Array.isArray(data.ustadz) && data.ustadz.length > 0) {
-        const remoteUstadz = data.ustadz;
-        const remoteIds = new Set(remoteUstadz.map(u => u.id));
-        const localOnly = appState.ustadz.filter(u => !remoteIds.has(u.id));
-        appState.ustadz = [...remoteUstadz, ...localOnly];
+      // Ustadz: Spreadsheet adalah database master terpusat, sanitasi field teks
+      if (Array.isArray(data.ustadz)) {
+        appState.ustadz = data.ustadz.map(u => ({
+          ...u,
+          id: String(u.id || `u-${Date.now()}`),
+          nip: String(u.nip || ''),
+          nama: String(u.nama || ''),
+          bidang: String(u.bidang || ''),
+          username: String(u.username || ''),
+          wa: String(u.wa !== undefined && u.wa !== null ? u.wa : ''),
+          avatar: u.avatar || '👳‍♂️',
+          pass: String(u.pass || 'guru123')
+        }));
       }
       // Kelas
       if (Array.isArray(data.kelasHalaqoh) && data.kelasHalaqoh.length > 0) {
@@ -3964,7 +4004,7 @@
         MASTER_SLOTS.push(...appState.slots);
       }
       // Logs
-      if (Array.isArray(data.logs) && data.logs.length > 0) {
+      if (Array.isArray(data.logs)) {
         appState.logs = data.logs;
       }
 
@@ -5072,8 +5112,23 @@
     // Wali WhatsApp & Print
     document.getElementById('btn-hubungi-musyrif')?.addEventListener('click', () => {
       const s = appState.currentUser.santri || appState.santri[0];
-      const u = appState.ustadz.find(item => item.nama.includes(s.musyrif.split(' ')[1] || 'Ahmad')) || appState.ustadz[0];
-      window.open(`https://wa.me/${u.wa.replace(/^0/, '62')}?text=Assalamu%27alaikum%20${encodeURIComponent(u.nama)},%20saya%20orang%20tua%20dari%20ananda%20${encodeURIComponent(s.nama)}%20(Kelas%20${encodeURIComponent(s.kelas)}%20Pondok%20Pesantren%20Bilal%20Bin%20Robah).%20Ingin%20berkonsultasi%20mengenai%20perkembangan%20kehadiran%20dan%20keaktifan%20belajar%20ananda.`, '_blank');
+      if (!s) {
+        showToast('Data santri tidak ditemukan.', 'error');
+        return;
+      }
+      const sMusyrif = String(s.musyrif || '');
+      const musyrifKey = sMusyrif.split(' ')[1] || sMusyrif;
+      const u = (appState.ustadz || []).find(item => musyrifKey && String(item.nama || '').includes(musyrifKey)) || (appState.ustadz && appState.ustadz[0]);
+      if (!u) {
+        showToast('Kontak ustadz/musyrif belum tersedia.', 'error');
+        return;
+      }
+      const rawWa = String(u.wa !== undefined && u.wa !== null ? u.wa : '').replace(/[^0-9]/g, '').replace(/^0/, '62');
+      if (!rawWa) {
+        showToast('Nomor WhatsApp ustadz belum diatur.', 'error');
+        return;
+      }
+      window.open(`https://wa.me/${rawWa}?text=Assalamu%27alaikum%20${encodeURIComponent(u.nama || 'Ustadz')},%20saya%20orang%20tua%20dari%20ananda%20${encodeURIComponent(s.nama || 'santri')}%20(Kelas%20${encodeURIComponent(s.kelas || '-')}%20Pondok%20Pesantren%20Bilal%20Bin%20Robah).%20Ingin%20berkonsultasi%20mengenai%20perkembangan%20kehadiran%20dan%20keaktifan%20belajar%20ananda.`, '_blank');
     });
 
     document.getElementById('btn-cetak-rapor-wali')?.addEventListener('click', openPrintModal);
