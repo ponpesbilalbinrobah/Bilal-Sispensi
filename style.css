@@ -4662,3 +4662,226 @@ body.theme-light .kelas-card-desc {
   letter-spacing: 0.5px;
 }
 
+/* ======================================================== */
+/* KELOLA ANGGOTA HALAQOH MODAL & COMPONENT STYLES */
+/* ======================================================== */
+.halaqoh-info-banner {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-left: 4px solid #10b981;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.halaqoh-info-banner .banner-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.halaqoh-info-banner .banner-title {
+  font-weight: 800;
+  color: #34d399;
+  font-size: 0.92rem;
+  margin-bottom: 2px;
+}
+
+.halaqoh-info-banner .banner-text {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-main);
+}
+
+.kelola-halaqoh-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 600px) {
+  .kelola-halaqoh-toolbar {
+    flex-direction: column;
+  }
+}
+
+.kelola-halaqoh-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.kelola-halaqoh-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.halaqoh-santri-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.halaqoh-santri-card:hover {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+  transform: translateY(-1px);
+}
+
+.halaqoh-santri-card.is-selected {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3);
+}
+
+.halaqoh-santri-card input[type="checkbox"] {
+  accent-color: #10b981;
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.halaqoh-santri-card .avatar-circle-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0284c7;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.halaqoh-santri-card .avatar-female {
+  background: #db2777 !important;
+}
+
+.halaqoh-santri-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+}
+
+.halaqoh-santri-name {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.halaqoh-santri-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.halaqoh-santri-class-badge {
+  background: rgba(2, 132, 199, 0.15);
+  color: #38bdf8;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.btn-card-action.kelola-halaqoh {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  font-weight: 700;
+}
+
+.btn-card-action.kelola-halaqoh:hover {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.badge-halaqoh-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.badge-halaqoh-tag:hover {
+  background: rgba(16, 185, 129, 0.25);
+  transform: translateY(-1px);
+}
+
+.btn-sm-badge-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: 1px dashed rgba(16, 185, 129, 0.5);
+  color: #10b981;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-sm-badge-add:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-style: solid;
+}
+
+body.theme-light .halaqoh-santri-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+body.theme-light .halaqoh-santri-card.is-selected {
+  background: #ecfdf5;
+  border-color: #10b981;
+}
+
+body.theme-light .halaqoh-info-banner {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+body.theme-light .halaqoh-info-banner .banner-title {
+  color: #047857;
+}
+
+

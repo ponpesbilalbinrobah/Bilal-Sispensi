@@ -365,7 +365,19 @@
         resetToDefaults();
       } else {
         try {
-          appState.santri = storedSantri ? JSON.parse(storedSantri) : [];
+          const rawSantri = storedSantri ? JSON.parse(storedSantri) : [];
+          appState.santri = rawSantri.map(s => {
+            let hlq = String(s.halaqoh || '').trim();
+            const notes = String(s.tahfidzNotes || '').trim();
+            if (!hlq && notes.includes('[HLQ:')) {
+              const m = notes.match(/\[HLQ:\s*([^\]]+)\]/);
+              if (m && m[1]) hlq = m[1].trim();
+            }
+            return {
+              ...s,
+              halaqoh: hlq
+            };
+          });
         } catch (e) {
           appState.santri = [];
         }
@@ -1016,7 +1028,7 @@
       const sNama = String(s.nama || '').toLowerCase();
       const sNis = String(s.nis || '').toLowerCase();
       const matchSearch = !q || sNama.includes(q) || sNis.includes(q);
-      const matchKelas = !k || String(s.kelas || '') === k;
+      const matchKelas = !k || String(s.kelas || '') === k || String(s.halaqoh || '') === k;
       return matchSearch && matchKelas;
     });
 
@@ -1052,9 +1064,20 @@
             </div>
           </td>
           <td>
-            <span class="badge badge-info" style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: transform 0.15s ease;" onclick="window.quickPindahSantri('${s.id}')" title="Klik untuk memindahkan santri ini ke kelas / halaqoh lain">
-              ${s.kelas || '-'} <span style="font-size: 0.72rem; opacity: 0.85;">🔄</span>
-            </span>
+            <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+              <span class="badge badge-info" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="window.quickPindahSantri('${s.id}')" title="Kelas Formal: ${s.kelas || '-'} (Klik untuk pindah kelas formal)">
+                🏫 ${s.kelas || '-'} <span style="font-size: 0.7rem; opacity: 0.85;">🔄</span>
+              </span>
+              ${s.halaqoh ? `
+                <span class="badge-halaqoh-tag" onclick="window.quickAturHalaqohSantri('${s.id}')" title="Halaqoh Tahfidz: ${s.halaqoh} (Klik untuk ganti halaqoh)">
+                  📖 ${s.halaqoh}
+                </span>
+              ` : `
+                <button type="button" class="btn-sm-badge-add" onclick="window.quickAturHalaqohSantri('${s.id}')" title="Tambahkan santri ini ke halaqoh tahfidz tanpa ubah kelasnya">
+                  + Halaqoh
+                </button>
+              `}
+            </div>
           </td>
           <td>${s.asrama || '-'}</td>
           <td>${s.wali || '-'}</td>
@@ -1071,7 +1094,8 @@
           </td>
           <td>
             <div style="display: flex; gap: 4px;">
-              <button type="button" class="btn-table-action" onclick="window.quickPindahSantri('${s.id}')" title="Pindah Kelas / Halaqoh" style="color: #0284c7; background: rgba(2, 132, 199, 0.12);">🔄</button>
+              <button type="button" class="btn-table-action" onclick="window.quickAturHalaqohSantri('${s.id}')" title="Atur Halaqoh Tahfidz (Kelas Formal Tetap)" style="color: #10b981; background: rgba(16, 185, 129, 0.12);">📖</button>
+              <button type="button" class="btn-table-action" onclick="window.quickPindahSantri('${s.id}')" title="Pindah Kelas Formal" style="color: #0284c7; background: rgba(2, 132, 199, 0.12);">🔄</button>
               <button type="button" class="btn-table-action" onclick="window.editSantri('${s.id}')" title="Edit Data">✏️</button>
               <button type="button" class="btn-table-action delete" onclick="window.deleteSantri('${s.id}')" title="Hapus Data">🗑️</button>
             </div>
@@ -1644,7 +1668,13 @@
     const slotId = slotSelect ? slotSelect.value : 'slot-1';
     const kelasVal = kelasSelect ? kelasSelect.value : 'Kelas 7A';
 
-    const santriList = appState.santri.filter(s => s.kelas === kelasVal);
+    const targetClassObj = appState.kelasHalaqoh.find(k => k.nama.toLowerCase() === (kelasVal || '').toLowerCase());
+    const isHalaqoh = targetClassObj ? isHalaqohGroup(targetClassObj) : (kelasVal.toLowerCase().includes('halaqoh') || kelasVal.toLowerCase().includes('tahfidz'));
+
+    const santriList = isHalaqoh
+      ? appState.santri.filter(s => (s.halaqoh || '').trim().toLowerCase() === kelasVal.trim().toLowerCase())
+      : appState.santri.filter(s => (s.kelas || '').trim().toLowerCase() === kelasVal.trim().toLowerCase());
+
     const existingLogs = appState.logs.filter(l => l.date === dateVal && l.slotId === slotId);
     const isSaved = existingLogs.length > 0;
 
@@ -1659,7 +1689,7 @@
     }
 
     if (santriList.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;" class="text-muted">Tidak ada santri di kelas ${kelasVal}.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;" class="text-muted">Tidak ada santri di ${isHalaqoh ? 'halaqoh' : 'kelas'} ${kelasVal}.</td></tr>`;
       return;
     }
 
@@ -1674,7 +1704,7 @@
           <td>${index + 1}</td>
           <td>
             <div class="santri-name-strong">${santri.nama}</div>
-            <div class="santri-nis-span">NIS: ${santri.nis} • ${santri.asrama}</div>
+            <div class="santri-nis-span">NIS: ${santri.nis} • Kelas: ${santri.kelas || '-'} ${santri.halaqoh ? '• Halaqoh: ' + santri.halaqoh : ''}</div>
           </td>
           <td>
             <div class="attendance-radio-group">
@@ -2608,7 +2638,9 @@
     document.getElementById('santri-edit-id').value = s.id;
     document.getElementById('santri-nis').value = s.nis;
     document.getElementById('santri-nama').value = s.nama;
-    document.getElementById('santri-kelas').value = s.kelas;
+    document.getElementById('santri-kelas').value = s.kelas || '';
+    const halaqohInput = document.getElementById('santri-halaqoh');
+    if (halaqohInput) halaqohInput.value = s.halaqoh || '';
     document.getElementById('santri-asrama').value = s.asrama;
     document.getElementById('santri-wali').value = s.wali;
     document.getElementById('santri-wa').value = s.wa;
@@ -2663,6 +2695,36 @@
     }
   };
 
+  // Helper to distinguish halaqoh from formal classes
+  function isHalaqohGroup(k) {
+    if (!k) return false;
+    const name = String(typeof k === 'string' ? k : (k.nama || '')).toLowerCase();
+    const kat = String(typeof k === 'object' && k ? (k.kategori || '') : '').toLowerCase();
+    const ting = String(typeof k === 'object' && k ? (k.tingkat || '') : '').toLowerCase();
+    return name.includes('halaqoh') || 
+           name.includes('tahfidz') || 
+           kat.includes('halaqoh') || 
+           kat.includes('tahfidz') || 
+           kat.includes('takhassus') || 
+           ting.includes('takhassus') ||
+           ting.includes('tahfidz');
+  }
+
+  function formatTahfidzNotesWithHalaqoh(notes, halaqoh) {
+    let clean = String(notes || '').replace(/\[HLQ:\s*[^\]]+\]/g, '').trim();
+    const hlq = (halaqoh || '').trim();
+    if (hlq) {
+      return clean ? `${clean} [HLQ: ${hlq}]` : `[HLQ: ${hlq}]`;
+    }
+    return clean;
+  }
+
+  function extractHalaqohFromNotes(notes) {
+    if (!notes) return '';
+    const m = String(notes).match(/\[HLQ:\s*([^\]]+)\]/);
+    return m && m[1] ? m[1].trim() : '';
+  }
+
   function ensureAllSantriClassesExist() {
     if (!Array.isArray(appState.kelasHalaqoh)) {
       appState.kelasHalaqoh = JSON.parse(JSON.stringify(INITIAL_KELAS_HALAQOH));
@@ -2683,6 +2745,19 @@
           deskripsi: `Rombongan belajar ${kName}`
         });
       }
+      const hlqName = (s.halaqoh || '').trim();
+      if (hlqName && !existingNames.has(hlqName.toLowerCase())) {
+        existingNames.add(hlqName.toLowerCase());
+        appState.kelasHalaqoh.push({
+          id: `k-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          nama: hlqName,
+          kategori: 'Halaqoh Tahfidz (Putra)',
+          tingkat: 'Takhassus',
+          pengampu: s.musyrif || (appState.ustadz[0]?.nama || 'Ustadz Andi Fathurahman'),
+          ruang: 'Mesjid Bilal Bin Robah',
+          deskripsi: `Halaqoh Al-Qur'an ${hlqName}`
+        });
+      }
     });
   }
 
@@ -2692,15 +2767,23 @@
       ? appState.kelasHalaqoh 
       : INITIAL_KELAS_HALAQOH;
     const classNames = [...new Set(classesList.map(k => k.nama.trim()))].sort();
+    const formalClasses = classesList.filter(k => !isHalaqohGroup(k));
+    const halaqohClasses = classesList.filter(k => isHalaqohGroup(k));
 
     // 0. Update nav tab count badge
     const adminKelasCount = document.getElementById('admin-kelas-count');
     if (adminKelasCount) adminKelasCount.textContent = classesList.length;
 
-    // 1. Datalist for manual typing in modal santri
+    // 1. Datalist for manual typing in modal santri (Formal Classes)
     const datalist = document.getElementById('datalist-kelas');
     if (datalist) {
-      datalist.innerHTML = classNames.map(k => `<option value="${k}">`).join('');
+      datalist.innerHTML = [...new Set(formalClasses.map(k => k.nama))].map(k => `<option value="${k}">`).join('');
+    }
+
+    // 1b. Datalist for Halaqoh Tahfidz in modal santri
+    const datalistHalaqoh = document.getElementById('datalist-halaqoh');
+    if (datalistHalaqoh) {
+      datalistHalaqoh.innerHTML = [...new Set(halaqohClasses.map(k => k.nama))].map(k => `<option value="${k}">`).join('');
     }
 
     // 2. Admin santri filter
@@ -2762,6 +2845,18 @@
         return `<option value="${k.nama}" ${curQuick === k.nama ? 'selected' : ''}>${k.nama} (${k.kategori}) • Pengampu: ${k.pengampu || '-'}</option>`;
       }).join('');
     }
+
+    // 8. Quick halaqoh modal target select box (Halaqoh only)
+    const quickHalaqohTarget = document.getElementById('quick-halaqoh-target-select');
+    if (quickHalaqohTarget) {
+      const curHlq = quickHalaqohTarget.value;
+      quickHalaqohTarget.innerHTML = `
+        <option value="">— Tidak Masuk Halaqoh (Kosongkan) —</option>
+        ${halaqohClasses.map(k => `
+          <option value="${k.nama}" ${curHlq === k.nama ? 'selected' : ''}>📖 ${k.nama} (${k.pengampu || 'Tanpa Pengampu'})</option>
+        `).join('')}
+      `;
+    }
   }
 
   // ==========================================================================
@@ -2821,29 +2916,44 @@
     }
 
     container.innerHTML = filtered.map(k => {
-      const enrolled = appState.santri.filter(s => (s.kelas || '').trim().toLowerCase() === k.nama.trim().toLowerCase());
-      const isPutri = k.kategori.toLowerCase().includes('putri') || k.nama.includes('7B');
-      const categoryIcon = k.kategori.includes('Tahfidz') ? '📖' : k.kategori.includes('Bahasa') ? '🗣️' : k.kategori.includes('Kitab') ? '📜' : '🏫';
+      const isHalaqoh = isHalaqohGroup(k);
+      const enrolled = isHalaqoh
+        ? appState.santri.filter(s => (s.halaqoh || '').trim().toLowerCase() === k.nama.trim().toLowerCase())
+        : appState.santri.filter(s => (s.kelas || '').trim().toLowerCase() === k.nama.trim().toLowerCase());
 
-      const chipsHtml = enrolled.slice(0, 5).map(s => `
-        <span class="santri-mini-chip" title="Klik untuk pindahkan ${s.nama} (${s.nis})" onclick="window.quickPindahSantri('${s.id}')">
-          ${s.nama.split(' ')[0]} 🔄
-        </span>
-      `).join('');
+      const isPutri = k.kategori.toLowerCase().includes('putri') || k.nama.includes('7B');
+      const categoryIcon = isHalaqoh ? '📖' : k.kategori.includes('Bahasa') ? '🗣️' : k.kategori.includes('Kitab') ? '📜' : '🏫';
+
+      const chipsHtml = enrolled.slice(0, 5).map(s => {
+        if (isHalaqoh) {
+          return `
+            <span class="santri-mini-chip" title="Anggota Halaqoh (Kelas Formal: ${s.kelas || '-'}) - Klik untuk atur halaqoh" onclick="window.quickAturHalaqohSantri('${s.id}')">
+              ${s.nama.split(' ')[0]} <small style="opacity: 0.75; font-size: 0.68rem;">(${s.kelas || 'Umum'})</small>
+            </span>
+          `;
+        }
+        return `
+          <span class="santri-mini-chip" title="Klik untuk pindahkan ${s.nama} (${s.nis})" onclick="window.quickPindahSantri('${s.id}')">
+            ${s.nama.split(' ')[0]} 🔄
+          </span>
+        `;
+      }).join('');
 
       const moreChips = enrolled.length > 5 
-        ? `<span class="santri-mini-chip more" onclick="window.openMutasiModal('${k.nama}')" title="Klik untuk lihat & mutasi semua santri">+${enrolled.length - 5} lainnya</span>` 
+        ? (isHalaqoh
+            ? `<span class="santri-mini-chip more" onclick="window.openKelolaHalaqohModal('${k.nama}')" title="Klik untuk kelola anggota halaqoh">+${enrolled.length - 5} lainnya</span>`
+            : `<span class="santri-mini-chip more" onclick="window.openMutasiModal('${k.nama}')" title="Klik untuk lihat & mutasi semua santri">+${enrolled.length - 5} lainnya</span>`)
         : '';
 
       return `
-        <div class="kelas-detail-card ${isPutri ? 'is-putri' : ''}">
+        <div class="kelas-detail-card ${isPutri ? 'is-putri' : ''} ${isHalaqoh ? 'is-halaqoh' : ''}">
           <div class="kelas-card-header">
             <div>
               <div class="kelas-card-category">${categoryIcon} ${k.kategori}</div>
               <h4 class="kelas-card-title">${k.nama}</h4>
             </div>
-            <div class="kelas-count-pill" title="Total santri terdaftar di halaqoh ini">
-              👥 <strong>${enrolled.length}</strong> Santri
+            <div class="kelas-count-pill" title="Total santri terdaftar di ${isHalaqoh ? 'halaqoh' : 'kelas'} ini">
+              👥 <strong>${enrolled.length}</strong> Santri ${isHalaqoh ? 'Halaqoh' : ''}
             </div>
           </div>
 
@@ -2871,17 +2981,26 @@
           <div class="kelas-card-santri-section">
             <div class="santri-section-header">
               <span>Santri Terdaftar (${enrolled.length})</span>
-              ${enrolled.length > 0 ? `<button type="button" class="btn-link-action" onclick="window.openMutasiModal('${k.nama}')">Mutasi Santri ↗</button>` : ''}
+              ${isHalaqoh 
+                ? `<button type="button" class="btn-link-action" onclick="window.openKelolaHalaqohModal('${k.nama}')" style="color: #10b981;">+ Kelola Anggota ↗</button>`
+                : (enrolled.length > 0 ? `<button type="button" class="btn-link-action" onclick="window.openMutasiModal('${k.nama}')">Mutasi Santri ↗</button>` : '')
+              }
             </div>
             <div class="kelas-santri-chips">
-              ${enrolled.length > 0 ? chipsHtml + moreChips : '<span class="text-muted" style="font-size: 0.8rem; font-style: italic;">Belum ada santri di kelas/halaqoh ini.</span>'}
+              ${enrolled.length > 0 ? chipsHtml + moreChips : `<span class="text-muted" style="font-size: 0.8rem; font-style: italic;">Belum ada santri di ${isHalaqoh ? 'halaqoh' : 'kelas'} ini.</span>`}
             </div>
           </div>
 
           <div class="kelas-card-actions">
-            <button type="button" class="btn-card-action mutasi" onclick="window.openMutasiModal('${k.nama}')" title="Pindahkan santri dari kelas ini">
-              <span>🔄</span> Pindah Santri
-            </button>
+            ${isHalaqoh ? `
+              <button type="button" class="btn-card-action kelola-halaqoh" onclick="window.openKelolaHalaqohModal('${k.nama}')" title="Tambah / Atur santri di halaqoh ini tanpa memindahkannya dari kelas formal">
+                <span>➕</span> Tambah / Atur Santri
+              </button>
+            ` : `
+              <button type="button" class="btn-card-action mutasi" onclick="window.openMutasiModal('${k.nama}')" title="Pindahkan santri dari kelas ini">
+                <span>🔄</span> Pindah Santri
+              </button>
+            `}
             <div style="display: flex; gap: 6px;">
               <button type="button" class="btn-card-action edit" onclick="window.editKelas('${k.id}')" title="Edit Rombel">
                 <span>✏️</span> Edit
@@ -2937,21 +3056,35 @@
     const k = appState.kelasHalaqoh.find(item => item.id === id);
     if (!k) return;
 
-    const enrolled = appState.santri.filter(s => (s.kelas || '').trim().toLowerCase() === k.nama.trim().toLowerCase());
-    if (enrolled.length > 0) {
-      alert(`⚠️ Tidak dapat menghapus "${k.nama}"!\n\nSaat ini masih ada ${enrolled.length} santri yang terdaftar di kelas/halaqoh ini. Silakan pindahkan santri tersebut ke kelas/halaqoh lain terlebih dahulu melalui tombol "Pindah Santri".`);
+    const isHalaqoh = isHalaqohGroup(k);
+    const enrolled = isHalaqoh
+      ? appState.santri.filter(s => (s.halaqoh || '').trim().toLowerCase() === k.nama.trim().toLowerCase())
+      : appState.santri.filter(s => (s.kelas || '').trim().toLowerCase() === k.nama.trim().toLowerCase());
+
+    if (!isHalaqoh && enrolled.length > 0) {
+      alert(`⚠️ Tidak dapat menghapus kelas "${k.nama}"!\n\nSaat ini masih ada ${enrolled.length} santri yang terdaftar di kelas formal ini. Silakan pindahkan santri tersebut ke kelas lain terlebih dahulu melalui tombol "Pindah Santri".`);
       return;
     }
 
-    if (confirm(`Apakah Anda yakin ingin menghapus kelas/halaqoh "${k.nama}"?`)) {
+    if (confirm(`Apakah Anda yakin ingin menghapus ${isHalaqoh ? 'halaqoh' : 'kelas'} "${k.nama}"?${isHalaqoh && enrolled.length > 0 ? `\n\n${enrolled.length} santri yang tergabung akan dilepaskan dari halaqoh ini, namun kelas formal santri TETAP AMAN.` : ''}`)) {
+      if (isHalaqoh && enrolled.length > 0) {
+        appState.santri.forEach(s => {
+          if ((s.halaqoh || '').trim().toLowerCase() === k.nama.trim().toLowerCase()) {
+            s.halaqoh = '';
+            s.tahfidzNotes = formatTahfidzNotesWithHalaqoh(s.tahfidzNotes, '');
+          }
+        });
+        syncSingleAction('sync_all', { santri: appState.santri });
+      }
       appState.kelasHalaqoh = appState.kelasHalaqoh.filter(item => item.id !== id);
       saveData();
       syncSingleAction('delete_kelas', { id, nama: k.nama });
       updateSheetsUI();
       updateKelasDropdowns();
       renderMasterKelasHalaqohView();
+      renderSantriTable();
       renderAdminView();
-      showToast(`Kelas / Halaqoh "${k.nama}" berhasil dihapus.`, 'info');
+      showToast(`${isHalaqoh ? 'Halaqoh' : 'Kelas'} "${k.nama}" berhasil dihapus.`, 'info');
     }
   };
 
@@ -2993,6 +3126,11 @@
               s.kelas = nama;
               updatedSantri++;
             }
+            if ((s.halaqoh || '').trim() === oldNama.trim()) {
+              s.halaqoh = nama;
+              s.tahfidzNotes = formatTahfidzNotesWithHalaqoh(s.tahfidzNotes, nama);
+              updatedSantri++;
+            }
           });
           appState.logs.forEach(l => {
             if ((l.santriKelas || '').trim() === oldNama.trim()) {
@@ -3000,6 +3138,7 @@
             }
           });
           if (updatedSantri > 0) {
+            syncSingleAction('sync_all', { santri: appState.santri });
             showToast(`Data ${updatedSantri} santri otomatis disinkronkan ke nama baru "${nama}".`, 'info');
           }
         }
@@ -3309,6 +3448,232 @@
     renderAdminView();
 
     showToast(`✅ Santri "${s.nama}" berhasil dipindahkan dari ${oldKelas} ke ${targetKelasNama}!`, 'success');
+  }
+
+  // ==========================================================================
+  // KELOLA ANGGOTA HALAQOH (TAMBAH SANTRI TANPA PINDAHKAN DARI KELAS FORMAL)
+  // ==========================================================================
+  let currentKelolaHalaqohName = '';
+  let selectedHalaqohSantriIds = new Set();
+
+  window.openKelolaHalaqohModal = function (halaqohNama) {
+    if (!halaqohNama) return;
+    currentKelolaHalaqohName = halaqohNama;
+
+    const k = appState.kelasHalaqoh.find(item => item.nama.toLowerCase() === halaqohNama.toLowerCase());
+    const pengampu = k?.pengampu || 'Ustadz Pengampu';
+    const ruang = k?.ruang || 'Pondok Utama';
+
+    const titleEl = document.getElementById('kelola-halaqoh-title');
+    const subtitleEl = document.getElementById('kelola-halaqoh-subtitle');
+    const bannerTitleEl = document.getElementById('kelola-halaqoh-banner-title');
+    const targetInput = document.getElementById('kelola-halaqoh-target-nama');
+
+    if (titleEl) titleEl.textContent = `Kelola Anggota: ${halaqohNama}`;
+    if (subtitleEl) subtitleEl.textContent = `Pengampu: ${pengampu} • Ruang: ${ruang}`;
+    if (bannerTitleEl) bannerTitleEl.textContent = `${halaqohNama} (${k?.kategori || 'Halaqoh Tahfidz'})`;
+    if (targetInput) targetInput.value = halaqohNama;
+
+    // Santri currently enrolled in this halaqoh
+    selectedHalaqohSantriIds = new Set(
+      appState.santri
+        .filter(s => (s.halaqoh || '').trim().toLowerCase() === halaqohNama.trim().toLowerCase())
+        .map(s => s.id)
+    );
+
+    // Populate filter kelas dropdown
+    const filterKelasSelect = document.getElementById('kelola-halaqoh-filter-kelas');
+    if (filterKelasSelect) {
+      const formalClassNames = [...new Set(
+        appState.santri.map(s => (s.kelas || '').trim()).filter(Boolean)
+      )].sort();
+      filterKelasSelect.innerHTML = '<option value="">Semua Kelas Formal</option>' + 
+        formalClassNames.map(cn => `<option value="${cn}">Kelas ${cn.replace(/^kelas\s*/i, '')}</option>`).join('');
+      filterKelasSelect.value = '';
+    }
+
+    const searchInput = document.getElementById('kelola-halaqoh-search');
+    if (searchInput) searchInput.value = '';
+
+    renderKelolaHalaqohSantriList();
+    openModal('modal-kelola-halaqoh');
+  };
+
+  function renderKelolaHalaqohSantriList() {
+    const listWrap = document.getElementById('kelola-halaqoh-santri-list');
+    const searchInput = document.getElementById('kelola-halaqoh-search');
+    const filterKelasSelect = document.getElementById('kelola-halaqoh-filter-kelas');
+    const counterBadge = document.getElementById('kelola-halaqoh-counter');
+    const totalShownEl = document.getElementById('kelola-halaqoh-total-shown');
+
+    if (!listWrap) return;
+
+    const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const fKelas = filterKelasSelect ? filterKelasSelect.value : '';
+
+    const filtered = appState.santri.filter(s => {
+      const matchSearch = !q || 
+        (s.nama && s.nama.toLowerCase().includes(q)) || 
+        (s.nis && String(s.nis).includes(q));
+      const matchKelas = !fKelas || (s.kelas || '').trim() === fKelas.trim();
+      return matchSearch && matchKelas;
+    });
+
+    if (counterBadge) {
+      counterBadge.textContent = `${selectedHalaqohSantriIds.size} Santri Terpilih`;
+    }
+    if (totalShownEl) {
+      totalShownEl.textContent = `(Menampilkan ${filtered.length} dari ${appState.santri.length} santri)`;
+    }
+
+    if (filtered.length === 0) {
+      listWrap.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 30px 15px; color: var(--text-muted);">
+          <span>🔍</span> Tidak ada santri yang sesuai kata kunci atau filter kelas.
+        </div>
+      `;
+      return;
+    }
+
+    listWrap.innerHTML = filtered.map(s => {
+      const isSelected = selectedHalaqohSantriIds.has(s.id);
+      const isFemale = s.gender === 'P';
+      const initials = (s.nama || '').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'ST';
+      const otherHalaqoh = (s.halaqoh && s.halaqoh.trim().toLowerCase() !== currentKelolaHalaqohName.trim().toLowerCase()) ? s.halaqoh : '';
+
+      return `
+        <label class="halaqoh-santri-card ${isSelected ? 'is-selected' : ''}" data-santri-id="${s.id}">
+          <input type="checkbox" class="kelola-halaqoh-check" value="${s.id}" ${isSelected ? 'checked' : ''}>
+          <div class="avatar-circle-sm ${isFemale ? 'avatar-female' : ''}">${initials}</div>
+          <div class="halaqoh-santri-info">
+            <span class="halaqoh-santri-name" title="${s.nama}">${s.nama}</span>
+            <div class="halaqoh-santri-meta">
+              <span class="halaqoh-santri-class-badge">🏫 ${s.kelas || 'Umum'}</span>
+              <span>NIS: ${s.nis || '-'}</span>
+              ${otherHalaqoh ? `<span style="color: #f59e0b; font-size: 0.68rem;" title="Saat ini di halaqoh: ${otherHalaqoh}">(${otherHalaqoh})</span>` : ''}
+            </div>
+          </div>
+        </label>
+      `;
+    }).join('');
+
+    // Attach click listener to checkboxes & cards
+    listWrap.querySelectorAll('.kelola-halaqoh-check').forEach(cb => {
+      cb.addEventListener('change', (e) => {
+        const sId = e.target.value;
+        const card = e.target.closest('.halaqoh-santri-card');
+        if (e.target.checked) {
+          selectedHalaqohSantriIds.add(sId);
+          if (card) card.classList.add('is-selected');
+        } else {
+          selectedHalaqohSantriIds.delete(sId);
+          if (card) card.classList.remove('is-selected');
+        }
+        if (counterBadge) counterBadge.textContent = `${selectedHalaqohSantriIds.size} Santri Terpilih`;
+      });
+    });
+  }
+
+  function handleSaveKelolaHalaqoh() {
+    if (!currentKelolaHalaqohName) return;
+
+    const targetHalaqoh = currentKelolaHalaqohName;
+    let addedCount = 0;
+    let removedCount = 0;
+
+    appState.santri.forEach(s => {
+      const isSelected = selectedHalaqohSantriIds.has(s.id);
+      const isCurrentlyIn = (s.halaqoh || '').trim().toLowerCase() === targetHalaqoh.trim().toLowerCase();
+
+      if (isSelected && !isCurrentlyIn) {
+        // Santri ditambahkan ke halaqoh ini TANPA MENGUBAH KELAS FORMAL MEREKA
+        s.halaqoh = targetHalaqoh;
+        s.tahfidzNotes = formatTahfidzNotesWithHalaqoh(s.tahfidzNotes, targetHalaqoh);
+        addedCount++;
+      } else if (!isSelected && isCurrentlyIn) {
+        // Santri dicopot dari halaqoh ini
+        s.halaqoh = '';
+        s.tahfidzNotes = formatTahfidzNotesWithHalaqoh(s.tahfidzNotes, '');
+        removedCount++;
+      }
+    });
+
+    saveData();
+    syncSingleAction('sync_all', { santri: appState.santri });
+    updateSheetsUI();
+    closeModal('modal-kelola-halaqoh');
+    updateKelasDropdowns();
+    renderMasterKelasHalaqohView();
+    renderSantriTable();
+    renderAdminView();
+
+    showToast(`🎉 Alhamdulillah, anggota "${targetHalaqoh}" berhasil diperbarui! (${selectedHalaqohSantriIds.size} santri). Nama santri di kelas formal tetap utuh.`, 'success');
+  }
+
+  // ==========================================================================
+  // QUICK ATUR HALAQOH PER-SANTRI (SATUAN)
+  // ==========================================================================
+  window.quickAturHalaqohSantri = function (santriId) {
+    const s = appState.santri.find(item => item.id === santriId);
+    if (!s) return;
+
+    updateKelasDropdowns();
+
+    const idInput = document.getElementById('quick-halaqoh-santri-id');
+    const profileWrap = document.getElementById('quick-halaqoh-profile');
+    const targetSelect = document.getElementById('quick-halaqoh-target-select');
+
+    if (idInput) idInput.value = s.id;
+
+    if (profileWrap) {
+      const initials = (s.nama || '').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'ST';
+      profileWrap.innerHTML = `
+        <div class="quick-pindah-avatar ${s.gender === 'P' ? 'avatar-female' : ''}">${initials}</div>
+        <div class="quick-pindah-info">
+          <h4 style="margin: 0 0 4px 0; color: #f8fafc; font-size: 1rem;">${s.nama}</h4>
+          <div style="font-size: 0.8rem; color: #94a3b8; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+            <span>NIS: <strong>${s.nis}</strong></span>
+            <span>•</span>
+            <span>Kelas Formal: <span class="badge badge-info" style="font-size: 0.75rem;">🏫 ${s.kelas || '-'}</span></span>
+            <span>•</span>
+            <span>Halaqoh Saat Ini: <strong style="color: #10b981;">${s.halaqoh || 'Belum Masuk Halaqoh'}</strong></span>
+          </div>
+        </div>
+      `;
+    }
+
+    if (targetSelect) {
+      targetSelect.value = s.halaqoh || '';
+    }
+
+    openModal('modal-quick-halaqoh');
+  };
+
+  function handleSaveQuickHalaqoh() {
+    const santriId = document.getElementById('quick-halaqoh-santri-id')?.value;
+    const targetHalaqohNama = document.getElementById('quick-halaqoh-target-select')?.value;
+
+    if (!santriId) return;
+    const s = appState.santri.find(item => item.id === santriId);
+    if (!s) return;
+
+    s.halaqoh = (targetHalaqohNama || '').trim();
+    s.tahfidzNotes = formatTahfidzNotesWithHalaqoh(s.tahfidzNotes, s.halaqoh);
+
+    saveData();
+    syncSingleAction('save_santri', { santri: s });
+    updateSheetsUI();
+    closeModal('modal-quick-halaqoh');
+    updateKelasDropdowns();
+    renderSantriTable();
+    renderMasterKelasHalaqohView();
+    renderAdminView();
+
+    if (s.halaqoh) {
+      showToast(`✅ Santri "${s.nama}" berhasil dimasukkan ke ${s.halaqoh} (Kelas ${s.kelas} tetap aman)!`, 'success');
+    } else {
+      showToast(`✅ Santri "${s.nama}" dikeluarkan dari halaqoh (Kelas ${s.kelas} tetap aman).`, 'info');
+    }
   }
 
   // ==========================================================================
@@ -3979,18 +4344,27 @@
     if (data && data.status === 'success') {
       // Santri: Sanitasi data agar bebas dari angka yang merusak string method
       if (Array.isArray(data.santri)) {
-        appState.santri = data.santri.map(s => ({
-          ...s,
-          id: String(s.id || `s-${Date.now()}`),
-          nis: String(s.nis || ''),
-          nama: String(s.nama || ''),
-          gender: s.gender || 'L',
-          kelas: String(s.kelas || ''),
-          asrama: String(s.asrama || ''),
-          wali: String(s.wali || ''),
-          wa: String(s.wa !== undefined && s.wa !== null ? s.wa : ''),
-          musyrif: String(s.musyrif || '')
-        }));
+        appState.santri = data.santri.map(s => {
+          let hlq = String(s.halaqoh || '').trim();
+          const notes = String(s.tahfidzNotes || '').trim();
+          if (!hlq && notes.includes('[HLQ:')) {
+            const m = notes.match(/\[HLQ:\s*([^\]]+)\]/);
+            if (m && m[1]) hlq = m[1].trim();
+          }
+          return {
+            ...s,
+            id: String(s.id || `s-${Date.now()}`),
+            nis: String(s.nis || ''),
+            nama: String(s.nama || ''),
+            gender: s.gender || 'L',
+            kelas: String(s.kelas || ''),
+            halaqoh: hlq,
+            asrama: String(s.asrama || ''),
+            wali: String(s.wali || ''),
+            wa: String(s.wa !== undefined && s.wa !== null ? s.wa : ''),
+            musyrif: String(s.musyrif || '')
+          };
+        });
       }
       // Ustadz: Spreadsheet adalah database master terpusat, sanitasi field teks
       if (Array.isArray(data.ustadz)) {
@@ -4204,13 +4578,14 @@
     const nis = document.getElementById('santri-nis').value.trim();
     const nama = document.getElementById('santri-nama').value.trim();
     const kelas = (document.getElementById('santri-kelas').value || '').trim() || 'Kelas 7A';
+    const halaqoh = (document.getElementById('santri-halaqoh')?.value || '').trim();
     const asrama = document.getElementById('santri-asrama').value.trim() || 'Kamar Bilal Bin Robah #01';
     const wali = document.getElementById('santri-wali').value.trim();
     const wa = document.getElementById('santri-wa').value.trim() || '081200000000';
     const musyrif = document.getElementById('santri-musyrif').value.trim() || 'Ustadz Ahmad Fauzi';
 
     if (!nis || !nama || !wali || !kelas) {
-      showToast('Harap lengkapi NIS, Nama Santri, Kelas/Halaqoh, dan Nama Wali.', 'error');
+      showToast('Harap lengkapi NIS, Nama Santri, Kelas Formal, dan Nama Wali.', 'error');
       return;
     }
 
@@ -4218,9 +4593,11 @@
     if (editId) {
       const idx = appState.santri.findIndex(s => s.id === editId);
       if (idx !== -1) {
+        const updatedNotes = formatTahfidzNotesWithHalaqoh(appState.santri[idx].tahfidzNotes, halaqoh);
         appState.santri[idx] = {
           ...appState.santri[idx],
-          nis, nama, kelas, asrama, wali, wa, musyrif
+          nis, nama, kelas, halaqoh, asrama, wali, wa, musyrif,
+          tahfidzNotes: updatedNotes
         };
         savedSantri = appState.santri[idx];
         showToast('Data santri berhasil diperbarui!', 'success');
@@ -4233,6 +4610,7 @@
         nama,
         gender: kelas.includes('7B') || kelas.toLowerCase().includes('putri') ? 'P' : 'L',
         kelas,
+        halaqoh,
         asrama,
         wali,
         wa,
@@ -4240,7 +4618,7 @@
         musyrif,
         tahfidzCurrent: 3.0,
         tahfidzTarget: 5.0,
-        tahfidzNotes: 'Pencapaian Juz 30'
+        tahfidzNotes: formatTahfidzNotesWithHalaqoh('Pencapaian Juz 30', halaqoh)
       };
       appState.santri.push(savedSantri);
       showToast(`Santri baru berhasil ditambahkan ke ${kelas}!`, 'success');
@@ -4846,6 +5224,32 @@
 
     // Quick Pindah Modal Event
     document.getElementById('btn-save-quick-pindah')?.addEventListener('click', handleSaveQuickPindah);
+
+    // Kelola Halaqoh Modal Events
+    document.getElementById('kelola-halaqoh-search')?.addEventListener('input', renderKelolaHalaqohSantriList);
+    document.getElementById('kelola-halaqoh-filter-kelas')?.addEventListener('change', renderKelolaHalaqohSantriList);
+    document.getElementById('btn-kelola-halaqoh-select-all')?.addEventListener('click', () => {
+      document.querySelectorAll('.kelola-halaqoh-check').forEach(cb => {
+        cb.checked = true;
+        selectedHalaqohSantriIds.add(cb.value);
+        cb.closest('.halaqoh-santri-card')?.classList.add('is-selected');
+      });
+      const counterBadge = document.getElementById('kelola-halaqoh-counter');
+      if (counterBadge) counterBadge.textContent = `${selectedHalaqohSantriIds.size} Santri Terpilih`;
+    });
+    document.getElementById('btn-kelola-halaqoh-unselect-all')?.addEventListener('click', () => {
+      document.querySelectorAll('.kelola-halaqoh-check').forEach(cb => {
+        cb.checked = false;
+        selectedHalaqohSantriIds.delete(cb.value);
+        cb.closest('.halaqoh-santri-card')?.classList.remove('is-selected');
+      });
+      const counterBadge = document.getElementById('kelola-halaqoh-counter');
+      if (counterBadge) counterBadge.textContent = `${selectedHalaqohSantriIds.size} Santri Terpilih`;
+    });
+    document.getElementById('btn-save-kelola-halaqoh')?.addEventListener('click', handleSaveKelolaHalaqoh);
+
+    // Quick Halaqoh Modal Event
+    document.getElementById('btn-save-quick-halaqoh')?.addEventListener('click', handleSaveQuickHalaqoh);
 
     // Add Santri (Manual Form)
     document.getElementById('btn-add-santri')?.addEventListener('click', () => {

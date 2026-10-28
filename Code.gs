@@ -59,7 +59,7 @@ function initCleanDatabase() {
   const ss = getSpreadsheet();
   
   createSheetIfNotExist(ss, 'Santri', [
-    'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+    'id', 'nis', 'nama', 'gender', 'kelas', 'halaqoh', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
   ], '#0284c7');
 
   createSheetIfNotExist(ss, 'Ustadz', [
@@ -112,7 +112,7 @@ function setupDatabase() {
   
   // 1. Setup Sheet Santri
   setupSheetForce(ss, 'Santri', [
-    'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+    'id', 'nis', 'nama', 'gender', 'kelas', 'halaqoh', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
   ], [
     ['s-1', '202607001', 'Muhammad Rayhan Al-Fatih', 'L', 'Kelas 7A', 'Kamar Bilal Bin Robah #01', 'Bpk. Hendra Gunawan', '081234567890', 'wali.rayhan', 'Ustadz Ahmad Fauzi', 4.5, 5.0, 'Juz 30, 29, 28, 27 (Mumtaz)'],
     ['s-2', '202607002', 'Fatimah Az-Zahra', 'P', 'Kelas 7B', 'Kamar Sayyidah Khadijah #02', 'Ibu Siti Rahmah', '081298765432', 'wali.fatimah', 'Ustadz Faiz Ramadhan', 5.0, 5.0, 'Tuntas Target Semester 1 (Juz 30-26)'],
@@ -399,7 +399,7 @@ function doPost(e) {
     // 4. Simpan / Edit Santri
     if (action === 'save_santri') {
       const sheet = createSheetIfNotExist(ss, 'Santri', [
-        'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+        'id', 'nis', 'nama', 'gender', 'kelas', 'halaqoh', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
       ], '#0284c7');
       const list = getSheetRecords(sheet);
       const target = body.santri;
@@ -410,7 +410,7 @@ function doPost(e) {
         list.push(target);
       }
       overwriteSheetRecords(sheet, list, [
-        'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+        'id', 'nis', 'nama', 'gender', 'kelas', 'halaqoh', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
       ]);
       return createJsonResponse({ status: 'success', message: `Data santri "${target.nama}" berhasil disimpan ke spreadsheet.` });
     }
@@ -418,11 +418,11 @@ function doPost(e) {
     // 5. Hapus Santri
     if (action === 'delete_santri') {
       const sheet = createSheetIfNotExist(ss, 'Santri', [
-        'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+        'id', 'nis', 'nama', 'gender', 'kelas', 'halaqoh', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
       ], '#0284c7');
       const list = getSheetRecords(sheet).filter(s => String(s.id) !== String(body.id) && (body.nis ? String(s.nis) !== String(body.nis) : true));
       overwriteSheetRecords(sheet, list, [
-        'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+        'id', 'nis', 'nama', 'gender', 'kelas', 'halaqoh', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
       ]);
       return createJsonResponse({ status: 'success', message: 'Data santri berhasil dihapus dari spreadsheet.' });
     }
@@ -511,9 +511,9 @@ function doPost(e) {
     if (action === 'sync_all') {
       if (Array.isArray(body.santri)) {
         overwriteSheetRecords(createSheetIfNotExist(ss, 'Santri', [
-          'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+          'id', 'nis', 'nama', 'gender', 'kelas', 'halaqoh', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
         ], '#0284c7'), body.santri, [
-          'id', 'nis', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
+          'id', 'nis', 'nama', 'gender', 'kelas', 'halaqoh', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'tahfidzCurrent', 'tahfidzTarget', 'tahfidzNotes'
         ]);
       }
       if (Array.isArray(body.ustadz)) {
@@ -581,7 +581,7 @@ function getSheetRecords(sheet) {
         val = false;
       } else if (val !== null && val !== undefined) {
         // Coerce text/code fields to string so they don't return as numbers (e.g. nip, nis, wa)
-        if (['id', 'nis', 'nip', 'nama', 'gender', 'kelas', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'bidang', 'username', 'avatar', 'pass', 'kategori', 'tingkat', 'pengampu', 'ruang', 'deskripsi', 'slotId', 'slotName', 'slotTime', 'santriId', 'santriName', 'santriKelas', 'status', 'catatan', 'ustadzName', 'date'].includes(h)) {
+        if (['id', 'nis', 'nip', 'nama', 'gender', 'kelas', 'halaqoh', 'asrama', 'wali', 'wa', 'waliUser', 'musyrif', 'bidang', 'username', 'avatar', 'pass', 'kategori', 'tingkat', 'pengampu', 'ruang', 'deskripsi', 'slotId', 'slotName', 'slotTime', 'santriId', 'santriName', 'santriKelas', 'status', 'catatan', 'ustadzName', 'date'].includes(h)) {
           val = String(val);
         }
       }

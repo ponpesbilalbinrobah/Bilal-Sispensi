@@ -1142,14 +1142,26 @@
 
             <div class="form-row">
               <div class="form-group flex-1">
-                <label for="santri-kelas"><span>🏫</span> Kelas / Halaqoh *</label>
-                <input type="text" id="santri-kelas" class="form-control" list="datalist-kelas" required placeholder="Ketik manual kelas / halaqoh...">
+                <label for="santri-kelas"><span>🏫</span> Kelas Formal (Pelajaran Umum) *</label>
+                <input type="text" id="santri-kelas" class="form-control" list="datalist-kelas" required placeholder="Contoh: Kelas 8...">
                 <datalist id="datalist-kelas">
-                  <option value="Kelas 7A">
-                  <option value="Kelas 7B">
-                  <option value="Kelas 8A">
+                  <option value="Kelas 7">
+                  <option value="Kelas 8">
+                  <option value="Kelas 9">
                 </datalist>
+                <small class="text-muted" style="font-size: 0.72rem;">Kelas utama santri untuk belajar formal/umum.</small>
               </div>
+              <div class="form-group flex-1">
+                <label for="santri-halaqoh"><span>📖</span> Halaqoh Tahfidz / Al-Qur'an</label>
+                <input type="text" id="santri-halaqoh" class="form-control" list="datalist-halaqoh" placeholder="Pilih / ketik halaqoh...">
+                <datalist id="datalist-halaqoh">
+                  <option value="Halaqoh Abu Bakar As-Siddik">
+                </datalist>
+                <small class="text-muted" style="font-size: 0.72rem;">Kelompok tahfidz santri (tanpa mengubah kelas formal).</small>
+              </div>
+            </div>
+
+            <div class="form-row">
               <div class="form-group flex-1">
                 <label for="santri-asrama"><span>🏠</span> Kamar / Asrama</label>
                 <input type="text" id="santri-asrama" class="form-control" placeholder="Contoh: Kamar Bilal Bin Robah #01">
@@ -1688,6 +1700,122 @@
           </button>
           <button type="button" class="btn btn-primary" id="btn-save-quick-pindah">
             <span>✅</span> Simpan Pemindahan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: KELOLA ANGGOTA HALAQOH (TAMBAH SANTRI TANPA PINDAH KELAS) -->
+  <!-- ======================================================== -->
+  <div class="modal-backdrop" id="modal-kelola-halaqoh" style="display: none;">
+    <div class="modal-dialog modal-lg-dialog">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <div class="modal-header-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">📖</div>
+          <div>
+            <h3 class="modal-title" id="kelola-halaqoh-title">Kelola Anggota Halaqoh</h3>
+            <p class="modal-subtitle" id="kelola-halaqoh-subtitle">Pilih santri untuk bergabung ke halaqoh ini tanpa mengubah kelas formal mereka</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-kelola-halaqoh" title="Tutup">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="kelola-halaqoh-target-nama" value="">
+
+        <!-- Banner Info Penjelasan -->
+        <div class="halaqoh-info-banner">
+          <div class="banner-icon">💡</div>
+          <div class="banner-content">
+            <div class="banner-title" id="kelola-halaqoh-banner-title">Halaqoh Tahfidz Al-Qur'an</div>
+            <div class="banner-text">
+              Santri yang dicentang akan menjadi anggota halaqoh ini untuk setoran hafalan & kehadiran tahfidz. 
+              <strong>Nama santri di kelas formal (umum) mereka TIDAK AKAN HILANG atau BERUBAH.</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="kelola-halaqoh-toolbar">
+          <div class="search-input-wrap" style="flex: 2;">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="kelola-halaqoh-search" class="form-control" placeholder="Cari nama santri atau NIS...">
+          </div>
+          <div class="filter-kelas-wrap" style="flex: 1;">
+            <select id="kelola-halaqoh-filter-kelas" class="form-control">
+              <option value="">Semua Kelas Formal</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Quick selection tabs / actions -->
+        <div class="kelola-halaqoh-action-bar">
+          <div class="action-bar-left">
+            <span class="badge badge-success" id="kelola-halaqoh-counter">0 Santri Terpilih</span>
+            <span class="text-muted" style="font-size: 0.8rem; margin-left: 8px;" id="kelola-halaqoh-total-shown"></span>
+          </div>
+          <div class="action-bar-right" style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-sm btn-outline" id="btn-kelola-halaqoh-select-all">
+              <span>☑️</span> Pilih Semua Tampil
+            </button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-kelola-halaqoh-unselect-all">
+              <span>⬜</span> Batalkan Semua
+            </button>
+          </div>
+        </div>
+
+        <!-- Santri Checklist Container -->
+        <div class="kelola-halaqoh-list" id="kelola-halaqoh-santri-list">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 16px;">
+          <button type="button" class="btn btn-outline" data-close-modal="modal-kelola-halaqoh">
+            <span>❌</span> Batal
+          </button>
+          <button type="button" class="btn btn-success" id="btn-save-kelola-halaqoh">
+            <span>💾</span> Simpan Anggota Halaqoh
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: QUICK ATUR HALAQOH SANTRI (SATUAN) -->
+  <!-- ======================================================== -->
+  <div class="modal-backdrop" id="modal-quick-halaqoh" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <div class="modal-header-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">📖</div>
+          <div>
+            <h3 class="modal-title">Atur Halaqoh Tahfidz Santri</h3>
+            <p class="modal-subtitle">Tentukan kelompok halaqoh tanpa mengubah kelas formal santri</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-quick-halaqoh" title="Tutup">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="quick-halaqoh-santri-id" value="">
+        <div class="quick-pindah-profile-box" id="quick-halaqoh-profile"></div>
+
+        <div class="alert alert-info" style="margin-top: 12px; font-size: 0.82rem; background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.3); border-radius: 8px; padding: 10px 12px; color: #bae6fd;">
+          ℹ️ <strong>Catatan:</strong> Santri tetap terdaftar di kelas formalnya untuk mata pelajaran umum. Penempatan halaqoh khusus untuk kegiatan tahfidz Al-Qur'an sesuai kemampuan santri.
+        </div>
+
+        <div class="form-group" style="margin-top: 14px;">
+          <label for="quick-halaqoh-target-select"><span>📖</span> Pilih Halaqoh Tahfidz / Al-Qur'an:</label>
+          <select id="quick-halaqoh-target-select" class="form-control select-highlight" style="font-weight: 700;"></select>
+        </div>
+
+        <div class="modal-footer" style="padding: 16px 0 0 0; margin-top: 16px;">
+          <button type="button" class="btn btn-outline" data-close-modal="modal-quick-halaqoh">
+            <span>❌</span> Batal
+          </button>
+          <button type="button" class="btn btn-success" id="btn-save-quick-halaqoh">
+            <span>✅</span> Simpan Halaqoh Santri
           </button>
         </div>
       </div>
