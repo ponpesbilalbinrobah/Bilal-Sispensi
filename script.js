@@ -1339,7 +1339,10 @@
     MASTER_SLOTS.push(...appState.slots);
 
     saveData();
+    syncSingleAction('sync_all', { slots: appState.slots });
+    updateSheetsUI();
     renderMasterJadwalCards();
+    renderAdminTimelineSlots();
     updateLiveClock();
 
     closeModal('modal-slot');
@@ -1360,7 +1363,10 @@
       MASTER_SLOTS.push(...appState.slots);
 
       saveData();
+      syncSingleAction('sync_all', { slots: appState.slots });
+      updateSheetsUI();
       renderMasterJadwalCards();
+      renderAdminTimelineSlots();
       updateLiveClock();
       showToast(`Slot "${slot.name}" telah dihapus!`, 'info');
     }
@@ -1373,7 +1379,10 @@
       MASTER_SLOTS.push(...appState.slots);
 
       saveData();
+      syncSingleAction('sync_all', { slots: appState.slots });
+      updateSheetsUI();
       renderMasterJadwalCards();
+      renderAdminTimelineSlots();
       updateLiveClock();
       showToast('Master slot berhasil dikembalikan ke standar 11 sesi!', 'success');
     }
@@ -3997,9 +4006,21 @@
       if (Array.isArray(data.kelasHalaqoh) && data.kelasHalaqoh.length > 0) {
         appState.kelasHalaqoh = data.kelasHalaqoh;
       }
-      // Slots
+      // Slots: sanitasi agar tipe data jam dan status break konsisten
       if (Array.isArray(data.slots) && data.slots.length > 0) {
-        appState.slots = sortSlots(data.slots);
+        appState.slots = sortSlots(data.slots.map(s => ({
+          ...s,
+          id: String(s.id || `slot-${Date.now()}`),
+          time: String(s.time || ''),
+          startHour: parseInt(s.startHour, 10) || 0,
+          startMin: parseInt(s.startMin, 10) || 0,
+          endHour: parseInt(s.endHour, 10) || 0,
+          endMin: parseInt(s.endMin, 10) || 0,
+          name: String(s.name || ''),
+          desc: String(s.desc || ''),
+          isBreak: s.isBreak === true || s.isBreak === 'true' || s.isBreak === 'TRUE',
+          icon: s.icon || '⏰'
+        })));
         MASTER_SLOTS.length = 0;
         MASTER_SLOTS.push(...appState.slots);
       }

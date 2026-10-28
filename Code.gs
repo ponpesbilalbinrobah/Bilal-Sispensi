@@ -458,13 +458,56 @@ function doPost(e) {
       return createJsonResponse({ status: 'success', message: 'Data kelas/halaqoh berhasil dihapus dari spreadsheet.' });
     }
 
-    // 8. Bersihkan Data Dummy
+    // 8. Simpan / Edit Slot Waktu
+    if (action === 'save_slot') {
+      const sheet = createSheetIfNotExist(ss, 'Slots', [
+        'id', 'time', 'startHour', 'startMin', 'endHour', 'endMin', 'name', 'desc', 'isBreak', 'icon'
+      ], '#d97706');
+      const list = getSheetRecords(sheet);
+      const target = body.slot;
+      const idx = list.findIndex(s => s.id === target.id);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...target };
+      } else {
+        list.push(target);
+      }
+      overwriteSheetRecords(sheet, list, [
+        'id', 'time', 'startHour', 'startMin', 'endHour', 'endMin', 'name', 'desc', 'isBreak', 'icon'
+      ]);
+      return createJsonResponse({ status: 'success', message: `Slot "${target.name}" berhasil disimpan ke spreadsheet.` });
+    }
+
+    // 9. Hapus Slot Waktu
+    if (action === 'delete_slot') {
+      const sheet = createSheetIfNotExist(ss, 'Slots', [
+        'id', 'time', 'startHour', 'startMin', 'endHour', 'endMin', 'name', 'desc', 'isBreak', 'icon'
+      ], '#d97706');
+      const list = getSheetRecords(sheet).filter(s => s.id !== body.id);
+      overwriteSheetRecords(sheet, list, [
+        'id', 'time', 'startHour', 'startMin', 'endHour', 'endMin', 'name', 'desc', 'isBreak', 'icon'
+      ]);
+      return createJsonResponse({ status: 'success', message: 'Slot berhasil dihapus dari spreadsheet.' });
+    }
+
+    // 10. Sinkronisasi Seluruh Slot Waktu
+    if (action === 'sync_slots') {
+      const sheet = createSheetIfNotExist(ss, 'Slots', [
+        'id', 'time', 'startHour', 'startMin', 'endHour', 'endMin', 'name', 'desc', 'isBreak', 'icon'
+      ], '#d97706');
+      const slots = Array.isArray(body.slots) ? body.slots : [];
+      overwriteSheetRecords(sheet, slots, [
+        'id', 'time', 'startHour', 'startMin', 'endHour', 'endMin', 'name', 'desc', 'isBreak', 'icon'
+      ]);
+      return createJsonResponse({ status: 'success', message: 'Daftar slot berhasil disinkronkan ke spreadsheet.' });
+    }
+
+    // 11. Bersihkan Data Dummy
     if (action === 'clear_dummy') {
       const count = purgeSampleDummyRecords();
       return createJsonResponse({ status: 'success', message: `Berhasil membersihkan ${count} baris data dummy di Google Spreadsheet.` });
     }
 
-    // 9. Sinkronisasi Penuh (Sync All State)
+    // 12. Sinkronisasi Penuh (Sync All State)
     if (action === 'sync_all') {
       if (Array.isArray(body.santri)) {
         overwriteSheetRecords(createSheetIfNotExist(ss, 'Santri', [
