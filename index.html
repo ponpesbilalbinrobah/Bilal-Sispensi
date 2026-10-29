@@ -608,14 +608,21 @@
               <p class="hero-meta" id="ustadz-profile-meta">NIP: 198804122015011002 • Bidang: Halaqoh Al-Quran & Ulumul Quran</p>
             </div>
           </div>
-          <div class="hero-stats">
-            <div class="mini-stat">
-              <span class="mini-label">Sesi Selesai Hari Ini</span>
-              <span class="mini-val" id="ustadz-today-sessions">0 Sesi</span>
+          <div class="hero-right-side">
+            <div class="hero-stats">
+              <div class="mini-stat">
+                <span class="mini-label">Sesi Selesai Hari Ini</span>
+                <span class="mini-val" id="ustadz-today-sessions">0 Sesi</span>
+              </div>
+              <div class="mini-stat">
+                <span class="mini-label">Santri Dinilai</span>
+                <span class="mini-val" id="ustadz-evaluated-count">0 Santri</span>
+              </div>
             </div>
-            <div class="mini-stat">
-              <span class="mini-label">Santri Dinilai</span>
-              <span class="mini-val" id="ustadz-evaluated-count">0 Santri</span>
+            <div class="hero-actions-wrap">
+              <button type="button" class="btn btn-logout-ustadz" id="btn-ustadz-logout" title="Keluar dari Akun Pengajar">
+                <span class="btn-icon">🚪</span> Keluar (Logout)
+              </button>
             </div>
           </div>
         </div>
@@ -683,6 +690,11 @@
             </div>
           </div>
 
+          <!-- PANDUAN GESER TABEL DI HP -->
+          <div class="mobile-table-scroll-hint">
+            <span>👉</span> Geser tabel ke samping kanan untuk mencatat skor keaktifan & catatan ustadz
+          </div>
+
           <div class="table-responsive">
             <table class="data-table input-table" id="table-input-attendance">
               <thead>
@@ -737,7 +749,8 @@
               <h2 class="santri-full-name" id="wali-santri-name">Muhammad Rayhan Al-Fatih</h2>
               <div class="santri-meta-tags">
                 <span class="meta-tag">NIS: <strong id="wali-santri-nis">202607001</strong></span>
-                <span class="meta-tag">Kelas: <strong id="wali-santri-kelas">Kelas 7A</strong></span>
+                <span class="meta-tag meta-tag-kelas">🏫 Kelas Formal: <strong id="wali-santri-kelas">Kelas 7A</strong></span>
+                <span class="meta-tag meta-tag-halaqoh">📖 Halaqoh Al-Qur'an: <strong id="wali-santri-halaqoh">Halaqoh Abu Bakar As-Siddik</strong></span>
                 <span class="meta-tag">Asrama: <strong id="wali-santri-asrama">Kamar Bilal Bin Robah #01</strong></span>
                 <span class="meta-tag">Musyrif: <strong id="wali-santri-musyrif">Ustadz Ahmad Fauzi</strong></span>
               </div>
@@ -756,6 +769,9 @@
               <span class="keaktifan-notes" id="wali-keaktifan-notes">Konsisten hadir tepat waktu & sangat aktif di seluruh 11 sesi kegiatan harian.</span>
             </div>
             <div class="wali-quick-btn-wrap" style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-outline-white" id="btn-wali-switch-santri" title="Ganti Santri atau Pilih Berdasarkan Halaqoh/Kelas">
+                <span>🔄</span> Pilihan Halaqoh / Santri
+              </button>
               <button type="button" class="btn btn-outline-white" id="btn-hubungi-musyrif">
                 💬 Hubungi Pembimbing via WA
               </button>
@@ -765,6 +781,9 @@
               <a href="https://bilal-tahfizh.vercel.app/" target="_blank" rel="noopener noreferrer" class="btn btn-outline-white" id="btn-wali-buka-tahfizh" title="Buka Portal Pantau Hafalan Anak di Tab Baru" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
                 <span>📖</span> Pantau Hafalan Anak ↗
               </a>
+              <button type="button" class="btn btn-danger-soft" id="btn-wali-logout" title="Keluar dari Portal Orang Tua">
+                <span>🚪</span> Keluar (Logout)
+              </button>
             </div>
           </div>
         </div>
@@ -870,12 +889,28 @@
 
         <!-- REAL-TIME TIMELINE FEED -->
         <div class="content-card">
-          <div class="card-header">
+          <div class="card-header-actions" style="margin-bottom: 14px;">
             <div>
               <h3 class="card-title">Ringkasan Laporan Harian & Catatan Ustadz (Real-Time)</h3>
               <p class="card-desc">Detail pemantauan slot demi slot hari ini, terbarui otomatis saat ustadz melakukan input</p>
             </div>
             <span class="badge badge-success">Live Sync Terhubung</span>
+          </div>
+
+          <!-- PILIHAN FILTER HALAQOH ATAU KELAS UNTUK TIMELINE ORANG TUA -->
+          <div class="wali-timeline-filter-bar">
+            <span class="filter-label">Filter Tampilan Sesi:</span>
+            <div class="filter-pills-group" id="wali-timeline-filter-group">
+              <button type="button" class="btn-timeline-filter active" data-filter="all">
+                🌟 Semua Sesi Hari Ini
+              </button>
+              <button type="button" class="btn-timeline-filter" data-filter="halaqoh">
+                📖 Sesi Halaqoh Al-Qur'an Saja
+              </button>
+              <button type="button" class="btn-timeline-filter" data-filter="pelajaran">
+                🏫 Sesi Pelajaran Kelas Formal
+              </button>
+            </div>
           </div>
 
           <div class="wali-timeline-feed" id="wali-timeline-feed"></div>
@@ -1041,7 +1076,19 @@
           </div>
         </div>
 
-        <div class="form-group" style="margin-top: 16px;">
+        <!-- FILTER PILIHAN HALAQOH / KELAS -->
+        <div class="form-group" style="margin-top: 14px;">
+          <label for="select-wali-filter-group" style="color: #38bdf8; font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+            <span>🔍</span> Pilihan Halaqoh / Kelas:
+          </label>
+          <select id="select-wali-filter-group" class="login-select" style="text-align: left; padding: 11px 14px; margin-top: 6px; font-weight: 600;">
+            <option value="all">🌟 Semua Santri (Semua Kelas & Halaqoh)</option>
+            <optgroup label="--- PILIH BERDASARKAN HALAQOH AL-QUR'AN ---" id="wali-filter-optgroup-halaqoh"></optgroup>
+            <optgroup label="--- PILIH BERDASARKAN KELAS FORMAL ---" id="wali-filter-optgroup-kelas"></optgroup>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-top: 14px;">
           <label for="select-santri-wali-modal" style="color: #f8fafc; font-size: 0.85rem; font-weight: 700;">
             Pilih Nama Ananda / Santri:
           </label>

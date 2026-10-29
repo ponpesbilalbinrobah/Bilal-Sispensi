@@ -671,26 +671,102 @@
     });
   }
 
-  function renderWaliSantriSelectOptions() {
+  function renderWaliSantriSelectOptions(filterVal) {
+    const filterSelect = document.getElementById('select-wali-filter-group');
+    const optgroupHalaqoh = document.getElementById('wali-filter-optgroup-halaqoh');
+    const optgroupKelas = document.getElementById('wali-filter-optgroup-kelas');
     const select = document.getElementById('select-santri-wali-modal');
     const grid = document.getElementById('quick-santri-grid');
     if (!select) return;
 
+    if (filterVal === undefined && filterSelect) {
+      filterVal = filterSelect.value || 'all';
+    } else if (filterVal === undefined) {
+      filterVal = 'all';
+    }
+
+    if (filterSelect && filterSelect.value !== filterVal) {
+      filterSelect.value = filterVal;
+    }
+
+    // Populate filter optgroups
+    if (optgroupHalaqoh && optgroupKelas) {
+      const uniqueHalaqoh = [];
+      appState.santri.forEach(s => {
+        const h = (s.halaqoh || '').trim();
+        if (h && !uniqueHalaqoh.includes(h)) uniqueHalaqoh.push(h);
+      });
+      appState.kelasHalaqoh.forEach(k => {
+        if (isHalaqohGroup(k) && !uniqueHalaqoh.includes(k.nama)) uniqueHalaqoh.push(k.nama);
+      });
+      uniqueHalaqoh.sort();
+
+      const uniqueKelas = [];
+      appState.santri.forEach(s => {
+        const k = (s.kelas || '').trim();
+        if (k && !uniqueKelas.includes(k)) uniqueKelas.push(k);
+      });
+      appState.kelasHalaqoh.forEach(k => {
+        if (!isHalaqohGroup(k) && !uniqueKelas.includes(k.nama)) uniqueKelas.push(k.nama);
+      });
+      uniqueKelas.sort();
+
+      optgroupHalaqoh.innerHTML = uniqueHalaqoh.map(h => `
+        <option value="halaqoh:${h}" ${filterVal === `halaqoh:${h}` ? 'selected' : ''}>📖 ${h}</option>
+      `).join('');
+
+      optgroupKelas.innerHTML = uniqueKelas.map(k => `
+        <option value="kelas:${k}" ${filterVal === `kelas:${k}` ? 'selected' : ''}>🏫 ${k}</option>
+      `).join('');
+    }
+
+    // Filter santri
+    let filteredSantri = appState.santri;
+    if (filterVal && filterVal.startsWith('halaqoh:')) {
+      const targetH = filterVal.replace('halaqoh:', '').trim().toLowerCase();
+      filteredSantri = appState.santri.filter(s => (s.halaqoh || '').trim().toLowerCase() === targetH);
+    } else if (filterVal && filterVal.startsWith('kelas:')) {
+      const targetK = filterVal.replace('kelas:', '').trim().toLowerCase();
+      filteredSantri = appState.santri.filter(s => (s.kelas || '').trim().toLowerCase() === targetK);
+    }
+
     select.innerHTML = '<option value="">-- Pilih Nama Santri --</option>';
-    appState.santri.forEach(s => {
+    filteredSantri.forEach(s => {
       const opt = document.createElement('option');
       opt.value = s.id;
-      opt.textContent = `${s.nama} (${s.kelas} • Wali: ${s.wali})`;
+      const hlqText = s.halaqoh ? ` • 📖 ${s.halaqoh}` : '';
+      opt.textContent = `${s.nama} (${s.kelas}${hlqText} • Wali: ${s.wali})`;
       select.appendChild(opt);
     });
 
+    if (filteredSantri.length > 0) {
+      if (!appState.selectedWaliSantriId || !filteredSantri.some(s => s.id === appState.selectedWaliSantriId)) {
+        appState.selectedWaliSantriId = filteredSantri[0].id;
+      }
+      select.value = appState.selectedWaliSantriId;
+    } else {
+      appState.selectedWaliSantriId = null;
+      select.value = '';
+    }
+
     if (grid) {
-      grid.innerHTML = appState.santri.map(s => `
-        <div class="quick-santri-card" data-santri-id="${s.id}" onclick="window.pickQuickSantri('${s.id}')">
-          <span class="q-santri-name">${s.nama}</span>
-          <span class="q-santri-meta">${s.kelas} • NIS: ${s.nis}</span>
-        </div>
-      `).join('');
+      if (filteredSantri.length === 0) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 16px;">Tidak ada santri yang terdaftar pada pilihan Halaqoh / Kelas ini.</div>';
+      } else {
+        grid.innerHTML = filteredSantri.map(s => `
+          <div class="quick-santri-card ${s.id === appState.selectedWaliSantriId ? 'active' : ''}" data-santri-id="${s.id}" onclick="window.pickQuickSantri('${s.id}')">
+            <div class="q-santri-top">
+              <span class="q-santri-name">${s.nama}</span>
+              <span class="q-santri-nis">NIS: ${s.nis}</span>
+            </div>
+            <div class="q-santri-tags">
+              <span class="q-badge-kelas">🏫 ${s.kelas}</span>
+              <span class="q-badge-halaqoh">📖 ${s.halaqoh || 'Halaqoh Qur\'an'}</span>
+            </div>
+            <div class="q-santri-wali">Wali: ${s.wali || '-'}</div>
+          </div>
+        `).join('');
+      }
     }
   }
 
@@ -1934,6 +2010,8 @@
     document.getElementById('wali-santri-name').textContent = santri.nama;
     document.getElementById('wali-santri-nis').textContent = santri.nis;
     document.getElementById('wali-santri-kelas').textContent = santri.kelas;
+    const halaqohEl = document.getElementById('wali-santri-halaqoh');
+    if (halaqohEl) halaqohEl.textContent = santri.halaqoh || 'Halaqoh Al-Qur\'an';
     document.getElementById('wali-santri-asrama').textContent = santri.asrama;
     document.getElementById('wali-santri-musyrif').textContent = santri.musyrif;
 
@@ -1992,7 +2070,7 @@
 
     renderWaliPieChart(santri.id);
     renderWaliLineChart(santri.id);
-    renderWaliTimelineFeed(santri.id);
+    renderWaliTimelineFeed(santri.id, appState.waliTimelineFilter || 'all');
   }
 
   // ==========================================================================
@@ -2467,14 +2545,41 @@
     };
   }
 
-  function renderWaliTimelineFeed(santriId) {
+  function renderWaliTimelineFeed(santriId, filterType = 'all') {
     const container = document.getElementById('wali-timeline-feed');
     if (!container) return;
+
+    appState.waliTimelineFilter = filterType;
+
+    // Update active filter pill button
+    document.querySelectorAll('#wali-timeline-filter-group .btn-timeline-filter').forEach(btn => {
+      if (btn.getAttribute('data-filter') === filterType) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
 
     const today = getTodayDateStr();
     const todayLogs = appState.logs.filter(l => l.date === today && l.santriId === santriId);
 
-    container.innerHTML = MASTER_SLOTS.map(slot => {
+    const filteredSlots = MASTER_SLOTS.filter(slot => {
+      if (filterType === 'halaqoh') {
+        const n = slot.name.toLowerCase();
+        return n.includes('halaqoh') || n.includes('tahfidz');
+      } else if (filterType === 'pelajaran') {
+        const n = slot.name.toLowerCase();
+        return n.includes('pelajaran');
+      }
+      return true;
+    });
+
+    if (filteredSlots.length === 0) {
+      container.innerHTML = '<div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.85rem;">Tidak ada sesi pada kategori filter ini.</div>';
+      return;
+    }
+
+    container.innerHTML = filteredSlots.map(slot => {
       const log = todayLogs.find(l => l.slotId === slot.id);
 
       if (slot.isBreak) {
@@ -5047,6 +5152,28 @@
 
     // 4. Logout / Back to Login
     document.getElementById('btn-logout')?.addEventListener('click', logoutToLoginPage);
+    document.getElementById('btn-ustadz-logout')?.addEventListener('click', logoutToLoginPage);
+    document.getElementById('btn-wali-logout')?.addEventListener('click', logoutToLoginPage);
+
+    // 4b. Switch santri / halaqoh in Wali Portal
+    document.getElementById('btn-wali-switch-santri')?.addEventListener('click', () => {
+      openModal('modal-wali-select');
+      renderWaliSantriSelectOptions();
+    });
+
+    // 4c. Filter group listener in modal wali
+    document.getElementById('select-wali-filter-group')?.addEventListener('change', (e) => {
+      renderWaliSantriSelectOptions(e.target.value);
+    });
+
+    // 4d. Timeline filter pills in Wali Portal
+    document.querySelectorAll('#wali-timeline-filter-group .btn-timeline-filter').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const filter = btn.getAttribute('data-filter') || 'all';
+        const curSantriId = appState.currentUser?.santriId || appState.selectedWaliSantriId;
+        renderWaliTimelineFeed(curSantriId, filter);
+      });
+    });
 
     // ========================================================================
     // 5. SETTINGS MODAL LISTENERS (RODA GIGI)
